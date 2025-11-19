@@ -36,7 +36,7 @@
             transition: width 0.3s ease; box-shadow: 0 0 10px var(--primary);
         }
 
-        /* --- Navigation (Netflix Style) --- */
+        /* --- Navigation --- */
         nav {
             position: fixed; top: 0; width: 100%; height: 68px; padding: 0 4%;
             background: linear-gradient(to bottom, rgba(0,0,0,0.7) 10%, rgba(0,0,0,0) 100%);
@@ -45,232 +45,143 @@
         }
         nav.scrolled { background-color: rgb(20, 20, 20); }
         
-        /* Left Side: Logo + Links */
         .nav-left { display: flex; align-items: center; gap: 20px; }
-        
         .logo { cursor: pointer; margin-right: 20px; display: flex; align-items: center; }
         .logo-img { height: 25px; width: auto; } 
 
-        .primary-navigation {
-            display: flex; align-items: center; list-style: none; gap: 20px; margin: 0; padding: 0;
-        }
-        .nav-tab a, .nav-tab span {
-            color: #e5e5e5; text-decoration: none; transition: color 0.3s; cursor: pointer; font-weight: 400;
-        }
+        .primary-navigation { display: flex; align-items: center; list-style: none; gap: 20px; margin: 0; padding: 0; }
+        .nav-tab a, .nav-tab span { color: #e5e5e5; text-decoration: none; transition: color 0.3s; cursor: pointer; font-weight: 400; }
         .nav-tab a:hover, .nav-tab span:hover { color: #b3b3b3; }
         .nav-tab.active a { color: white; font-weight: bold; cursor: default; }
 
-        /* TV Dropdown Integration */
+        /* Dropdown */
         .nav-dropdown-container { position: relative; display: inline-block; }
-        .nav-dropdown-btn {
-            background: transparent; color: #e5e5e5; border: none; font-size: 14px;
-            cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
-        }
+        .nav-dropdown-btn { background: transparent; color: #e5e5e5; border: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit; }
         .nav-dropdown-btn:hover { color: #b3b3b3; }
-        
-        .nav-dropdown-menu {
-            position: absolute; top: 30px; left: 0; 
-            background: rgba(0,0,0,0.9); border: 1px solid #333; 
-            border-top: 2px solid white; 
-            min-width: 200px; display: none; flex-direction: column;
-            padding: 10px 0; max-height: 60vh; overflow-y: auto;
-        }
+        .nav-dropdown-menu { position: absolute; top: 30px; left: 0; background: rgba(0,0,0,0.9); border: 1px solid #333; border-top: 2px solid white; min-width: 200px; display: none; flex-direction: column; padding: 10px 0; max-height: 60vh; overflow-y: auto; }
         .nav-dropdown-menu.show { display: flex; }
-        .nav-item {
-            padding: 10px 20px; cursor: pointer; transition: 0.2s; font-size: 13px; 
-            color: #fff; display: flex; justify-content: space-between; align-items: center;
-        }
+        .nav-item { padding: 10px 20px; cursor: pointer; transition: 0.2s; font-size: 13px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
         .nav-item:hover { text-decoration: underline; }
         .nav-item.active { font-weight: bold; }
         .nav-divider { height: 1px; background: #404040; margin: 5px 0; }
         .nav-header { padding: 5px 20px; font-size: 0.8rem; font-weight: bold; color: white; margin-top: 5px; cursor: default;}
-        
         .delete-section-btn { color: #666; font-size: 0.9rem; padding: 0 5px; }
         .delete-section-btn:hover { color: var(--primary); }
 
-        /* Right Side: Search + Profile */
+        /* Search + Profile */
         .secondary-navigation { display: flex; align-items: center; gap: 20px; }
-        
-        /* Netflix-style Search */
-        .search-box {
-            display: flex; align-items: center; position: relative;
-        }
-        .search-icon-btn {
-            background: transparent; border: none; color: white; font-size: 1.2rem; cursor: pointer; z-index: 2;
-        }
-        .search-input {
-            background: transparent; border: 1px solid transparent; color: white;
-            width: 0; opacity: 0; padding: 5px 0;
-            transition: width 0.3s, opacity 0.3s, background 0.3s, padding 0.3s;
-            position: absolute; right: 0; font-size: 14px;
-        }
-        .search-box.active .search-input {
-            width: 220px; opacity: 1; background: black; border: 1px solid white; padding: 5px 10px 5px 30px;
-        }
-
+        .search-box { display: flex; align-items: center; position: relative; }
+        .search-icon-btn { background: transparent; border: none; color: white; font-size: 1.2rem; cursor: pointer; z-index: 2; }
+        .search-input { background: transparent; border: 1px solid transparent; color: white; width: 0; opacity: 0; padding: 5px 0; transition: width 0.3s, opacity 0.3s, background 0.3s, padding 0.3s; position: absolute; right: 0; font-size: 14px; }
+        .search-box.active .search-input { width: 220px; opacity: 1; background: black; border: 1px solid white; padding: 5px 10px 5px 30px; }
         .nav-element { color: white; cursor: pointer; font-size: 1.2rem; }
-        
         .profile-menu { display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .profile-img { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; }
         .caret-icon { font-size: 0.8rem; transition: transform 0.3s; }
         .profile-menu:hover .caret-icon { transform: rotate(180deg); }
 
-        /* --- Hero Section (UPDATED FOR FULL SCREEN) --- */
-        .hero {
-            height: 100vh; 
-            min-height: 500px;
-            position: relative; display: flex; align-items: center; padding-left: 4%; overflow: hidden;
-            transition: height 0.5s;
-        }
+        /* --- Hero Section --- */
+        .hero { height: 100vh; min-height: 500px; position: relative; display: flex; align-items: center; padding-left: 4%; overflow: hidden; transition: height 0.5s; }
         .hero.hidden { display: none; }
-
-        #hero-video-bg {
-            position: absolute; 
-            top: 50%; left: 50%; 
-            width: 100vw; height: 100vh;
-            object-fit: cover; 
-            transform: translate(-50%, -50%) scale(1.1);
-            z-index: 0; opacity: 0.6; transition: opacity 1s;
-        }
-
-        .hero::after {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to top, var(--dark) 10%, transparent 60%),
-                        linear-gradient(to right, var(--dark) 0%, transparent 50%);
-            z-index: 1;
-        }
-
+        #hero-video-bg { position: absolute; top: 50%; left: 50%; width: 100vw; height: 100vh; object-fit: cover; transform: translate(-50%, -50%) scale(1.1); z-index: 0; opacity: 0.6; transition: opacity 1s; }
+        .hero::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to top, var(--dark) 10%, transparent 60%), linear-gradient(to right, var(--dark) 0%, transparent 50%); z-index: 1; }
         .hero-content { position: relative; z-index: 2; max-width: 600px; margin-bottom: 40px; margin-top: 0; padding-right: 20px;}
         .hero-label { font-size: 1.4rem; font-weight: bold; color: rgba(255,255,255,0.9); margin-bottom: 10px; display: flex; align-items: center; gap: 10px;}
         .hero-label::before { content: 'N'; color: var(--primary); font-size: 2.2rem; font-weight: 900; font-family:Arial, Helvetica, sans-serif }
-        
         .hero-title { font-size: 3.5rem; margin-bottom: 15px; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1; }
         .hero-desc { font-size: 1.2rem; margin-bottom: 25px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); color: #fff; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-width: 80%; }
         .hero-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-
-        .hero-mute-btn {
-            position: absolute; right: 4%; bottom: 30%; z-index: 20;
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.7);
-            color: white; font-size: 1rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; transition: 0.2s;
-        }
-        
-        .btn {
-            padding: 0.6rem 1.5rem; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 4px;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: 0.2s;
-        }
+        .hero-mute-btn { position: absolute; right: 4%; bottom: 30%; z-index: 20; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.7); color: white; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn { padding: 0.6rem 1.5rem; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: 0.2s; }
         .btn-play { background: white; color: black; }
         .btn-play:hover { background: rgba(255, 255, 255, 0.75); }
         .btn-info { background: rgba(109, 109, 109, 0.7); color: white; }
         .btn-info:hover { background: rgba(109, 109, 109, 0.4); }
 
-        /* --- SKELETON LOADING ANIMATION --- */
-        #skeleton-loader {
-            position: absolute; top: 0; left: 0; width: 100%; min-height: 100vh;
-            background: var(--dark); z-index: 50; overflow: hidden;
-        }
-
-        .skeleton-hero {
-            width: 100%; height: 90vh; 
-            position: relative; 
-            margin-bottom: -100px; /* overlap like real hero */
-            display: flex; flex-direction: column; justify-content: center; padding-left: 4%;
-        }
-        
-        /* Shimmer Effect */
-        .shimmer {
-            background: #222;
-            background-image: linear-gradient(to right, var(--skeleton-base) 0%, var(--skeleton-highlight) 20%, var(--skeleton-base) 40%, var(--skeleton-base) 100%);
-            background-repeat: no-repeat;
-            background-size: 800px 100%; 
-            animation: shimmer 1.5s linear infinite forwards;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: -800px 0; }
-            100% { background-position: 800px 0; } 
-        }
-
+        /* --- SKELETON --- */
+        #skeleton-loader { position: absolute; top: 0; left: 0; width: 100%; min-height: 100vh; background: var(--dark); z-index: 50; overflow: hidden; }
+        .skeleton-hero { width: 100%; height: 90vh; position: relative; margin-bottom: -100px; display: flex; flex-direction: column; justify-content: center; padding-left: 4%; }
+        .shimmer { background: #222; background-image: linear-gradient(to right, var(--skeleton-base) 0%, var(--skeleton-highlight) 20%, var(--skeleton-base) 40%, var(--skeleton-base) 100%); background-repeat: no-repeat; background-size: 800px 100%; animation: shimmer 1.5s linear infinite forwards; }
+        @keyframes shimmer { 0% { background-position: -800px 0; } 100% { background-position: 800px 0; } }
         .sk-text { border-radius: 4px; margin-bottom: 15px; opacity: 0.7; }
         .sk-title { width: 40%; height: 60px; margin-bottom: 20px; }
         .sk-desc { width: 30%; height: 20px; margin-bottom: 10px; }
         .sk-desc-2 { width: 25%; height: 20px; margin-bottom: 30px; }
         .sk-btn { width: 120px; height: 45px; display: inline-block; margin-right: 10px; border-radius: 4px;}
-
         .sk-section { padding: 20px 4% 0 4%; margin-bottom: 30px; z-index: 60; position: relative;}
         .sk-header { width: 150px; height: 20px; margin-bottom: 15px; border-radius: 4px; opacity: 0.5; }
         .sk-row { display: flex; gap: 10px; overflow: hidden; }
-        .sk-card { 
-            width: 230px; height: 130px; border-radius: 4px; flex-shrink: 0; 
-            opacity: 0.6;
-        }
+        .sk-card { width: 230px; height: 130px; border-radius: 4px; flex-shrink: 0; opacity: 0.6; }
 
         /* --- Content Areas --- */
-        .section-home { 
-            padding: 0 0 40px 0; position: relative; z-index: 10; 
-            margin-top: -225px; 
-            min-height: 500px; 
-        }
-        .section-grid {
-            padding: 80px 4% 40px 4%; position: relative;
-            z-index: 10; margin-top: 0; min-height: 100vh;
-        }
-        .section-title { 
-            font-size: 1.4rem; font-weight: bold; margin-bottom: 10px; color: #e5e5e5; 
-            margin-top: 3vw; display: flex; align-items: center; gap: 10px; padding-left: 4%; 
-        }
+        .section-home { padding: 0 0 40px 0; position: relative; z-index: 10; margin-top: -225px; min-height: 500px; }
+        .section-grid { padding: 80px 4% 40px 4%; position: relative; z-index: 10; margin-top: 0; min-height: 100vh; }
+        .section-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 10px; color: #e5e5e5; margin-top: 3vw; display: flex; align-items: center; gap: 10px; padding-left: 4%; }
         .section-home > .section-title:first-child { margin-top: 0; }
         .section-grid > .section-title { padding-left: 0; margin-top: 0; margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #333; padding-bottom: 10px;}
 
         .row-container { position: relative; width: 100%; }
+        
+        /* UPDATED ROW: Added vertical padding to prevent clipping on hover */
         .row {
-            display: flex; overflow-x: auto; gap: 8px; padding: 0 4% 30px 4%;
+            display: flex; overflow-x: auto; gap: 8px; 
+            padding: 40px 4% 40px 4%; /* Top/Bottom padding allows scale(1.3) space */
+            margin-top: -30px; margin-bottom: -20px; /* Negate margin to keep visual spacing tight */
             scrollbar-width: none; scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
         }
         .row::-webkit-scrollbar { display: none; }
 
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 10px; width: 100%;
-        }
-
-        .scroll-btn {
-            position: absolute; top: 0; bottom: 30px; width: 40px;
-            background: rgba(0,0,0,0.5); color: white; border: none; z-index: 20;
-            cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.3s;
-        }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; width: 100%; }
+        .scroll-btn { position: absolute; top: 0; bottom: 30px; width: 40px; background: rgba(0,0,0,0.5); color: white; border: none; z-index: 20; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
         .row-container:hover .scroll-btn { opacity: 1; }
         .scroll-btn.left { left: 0; border-top-right-radius: 4px; border-bottom-right-radius: 4px;}
         .scroll-btn.right { right: 0; border-top-left-radius: 4px; border-bottom-left-radius: 4px;}
 
         .card {
-            flex: 0 0 auto; width: 230px; height: 130px; background: #222; border-radius: 4px;
-            position: relative; cursor: pointer; transition: transform 0.3s ease; overflow: hidden;
+            flex: 0 0 auto; width: 230px; height: 130px; 
+            background: #222; border-radius: 4px;
+            position: relative; cursor: pointer; 
+            /* UPDATED: Faster transition, removed delay */
+            transition: transform 0.2s ease-in-out; 
+            overflow: hidden;
         }
         .grid-container .card { width: 100%; height: auto; aspect-ratio: 16/9; }
         
         @media(hover: hover) {
-            .card:hover { transform: scale(1.3); z-index: 50; box-shadow: 0 0 15px rgba(0,0,0,0.9); transition-delay: 0.3s; }
-            .card img { transition: 0.3s; opacity: 0.9; }
+            /* UPDATED: No delay, proper z-index */
+            .card:hover { 
+                transform: scale(1.3); 
+                z-index: 100; 
+                box-shadow: 0 0 15px rgba(0,0,0,0.9); 
+            }
+            .card img { transition: 0.2s; opacity: 1; }
             .card:hover img { opacity: 0.4; }
-            .card-info { opacity: 0; transition: 0.3s; }
-            .card:hover .card-info { opacity: 1; transition-delay: 0.3s;}
+            .card-info { opacity: 0; transition: 0.2s; }
+            .card:hover .card-info { opacity: 1; }
         }
 
-        .card img { width: 100%; height: 100%; object-fit: cover; background: #000; }
+        .card img { width: 100%; height: 100%; object-fit: cover; background: transparent; position: relative; z-index: 1; }
+        
+        /* Fallback Title (Behind Image) */
+        .card-fallback-title {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; text-align: center;
+            font-size: 1.2rem; font-weight: 800; color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
         .card-info {
             position: absolute; bottom: 0; left: 0; right: 0; top: 0; display: flex; flex-direction: column;
-            justify-content: flex-end; padding: 10px; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            justify-content: flex-end; padding: 10px; 
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            z-index: 10;
         }
         .card-actions { display: flex; gap: 8px; margin-bottom: 5px; }
-        .action-btn { 
-            width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); 
-            display: flex; align-items: center; justify-content: center; font-size: 0.7rem; background: rgba(42, 42, 42, 0.6); color: white;
-        }
+        .action-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; background: rgba(42, 42, 42, 0.6); color: white; }
         .action-btn:hover { border-color: white; background: white; color: black; }
         .badge-live { background: #e50914; color: white; font-size: 0.6rem; padding: 2px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; font-weight: bold;}
         .channel-name { font-size: 0.85rem; font-weight: bold; color: white; vertical-align: middle; text-shadow: 1px 1px 2px black; }
@@ -283,109 +194,55 @@
             .card-actions { display: none; }
             .grid-container { gap: 10px; }
             .section-home { margin-top: -80px; }
-            
-            /* Skeleton mobile adjustment */
             .sk-card { width: 160px; height: 90px; }
             .sk-title { width: 70%; height: 40px; }
+            .row { padding: 0 4% 30px 4%; margin-top: 0; margin-bottom: 0; } /* Reset padding for touch devices */
         }
 
-        /* --- Collection Modal --- */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-            z-index: 4000; display: none; align-items: center; justify-content: center;
-        }
-        .modal-content {
-            background: #181818; width: 400px; max-width: 90%; padding: 20px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-        }
+        /* --- Modal/Player CSS (Unchanged) --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 4000; display: none; align-items: center; justify-content: center; }
+        .modal-content { background: #181818; width: 400px; max-width: 90%; padding: 20px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
         .modal-title { font-size: 1.2rem; font-weight: bold; }
         .modal-close { cursor: pointer; font-size: 1.5rem; padding: 5px; color: #aaa; }
-        
         .collection-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
         .collection-input { flex: 1; background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 4px; font-size: 16px;}
         .collection-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .collection-item { display: flex; align-items: center; gap: 15px; background: #222; padding: 12px; border-radius: 4px; cursor: pointer; }
         .checkbox-custom { accent-color: var(--primary); width: 20px; height: 20px; }
 
-        /* --- Player Modal --- */
-        .video-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000;
-            z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center;
-        }
+        .video-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .video-wrapper { width: 100%; height: 100%; position: relative; background: black; }
         video#mainVideo { width: 100%; height: 100%; object-fit: contain; }
-
-        .player-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%);
-            opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column;
-            justify-content: space-between; padding: 20px; pointer-events: none;
-        }
+        .player-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; pointer-events: none; }
         .video-wrapper:hover .player-overlay, .player-overlay.show-mobile { opacity: 1; pointer-events: auto; }
-
         .player-top { display: flex; justify-content: space-between; align-items: center; margin-top: 10px;}
         .back-btn { font-size: 2rem; cursor: pointer; padding: 10px; }
         .player-title { font-size: 1.2rem; font-weight: bold; margin-left: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-        
         .player-center { display: flex; justify-content: center; align-items: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: auto; }
         .big-play-btn { font-size: 4rem; cursor: pointer; opacity: 0.8; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); padding: 20px;}
-        
-        .player-bottom { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 0 40px 30px 40px; 
-            width: 100%;
-        }
-
-        .player-controls-left, .player-controls-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
+        .player-bottom { display: flex; justify-content: space-between; align-items: center; padding: 0 40px 30px 40px; width: 100%; }
+        .player-controls-left, .player-controls-right { display: flex; align-items: center; gap: 20px; }
         .control-btn { font-size: 1.5rem; cursor: pointer; color: #ccc; background: none; border: none; position: relative; padding: 10px; transition: transform 0.2s; }
         .control-btn:hover { color: white; transform: scale(1.1); }
         .control-btn.active { color: var(--primary); }
-        
         .speed-controls { display: flex; align-items: center; background: rgba(255,255,255,0.15); padding: 5px 10px; border-radius: 5px; gap: 10px; }
         .speed-display { font-weight: bold; font-size: 0.9rem; width: 45px; text-align: center; }
-        
-        @media(hover: hover) {
-            .control-btn::after {
-                content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
-                background: white; color: black; font-size: 0.8rem; padding: 4px 8px; border-radius: 3px; opacity: 0; pointer-events: none; transition: 0.2s; white-space: nowrap; font-weight: bold;
-            }
-            .control-btn:hover::after { opacity: 1; }
-        }
-
-        .toast {
-            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(229, 9, 20, 0.9); color: white; padding: 10px 20px;
-            border-radius: 4px; z-index: 5000; font-weight: bold; display: none; width: max-content; max-width: 90%; text-align: center;
-        }
-
+        @media(hover: hover) { .control-btn::after { content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); background: white; color: black; font-size: 0.8rem; padding: 4px 8px; border-radius: 3px; opacity: 0; pointer-events: none; transition: 0.2s; white-space: nowrap; font-weight: bold; } .control-btn:hover::after { opacity: 1; } }
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.9); color: white; padding: 10px 20px; border-radius: 4px; z-index: 5000; font-weight: bold; display: none; width: max-content; max-width: 90%; text-align: center; }
         #provider-frame { display: none; width: 0; height: 0; border: 0; }
 
-        /* --- Responsive Media Queries --- */
-        @media (max-width: 880px) {
-            .primary-navigation .nav-tab:not(#tv-nav-item):not(.always-visible) { display: none; }
-        }
-
+        /* Mobile Media Queries */
+        @media (max-width: 880px) { .primary-navigation .nav-tab:not(#tv-nav-item):not(.always-visible) { display: none; } }
         @media (max-width: 768px) {
             nav { padding: 0 3%; height: 50px; }
             .logo-img { height: 20px; }
-            
             .search-box.active .search-input { width: 150px; background: #141414; }
-            
             .hero { height: 60vh; min-height: 400px; }
             .hero-title { font-size: 2rem; margin-bottom: 10px; }
             .hero-desc { font-size: 0.95rem; line-height: 1.4; -webkit-line-clamp: 3; margin-bottom: 15px; }
             .hero-buttons .btn { padding: 8px 15px; font-size: 0.9rem; flex: 1; justify-content: center; }
-            
-            .player-bottom { 
-                justify-content: center; flex-wrap: wrap; padding: 0 20px 20px 20px; gap: 10px;
-            }
+            .player-bottom { justify-content: center; flex-wrap: wrap; padding: 0 20px 20px 20px; gap: 10px; }
             .player-controls-left, .player-controls-right { gap: 10px; justify-content: center; }
             .speed-controls { display: none; }
             .player-title { font-size: 1rem; text-align: left; margin-left: 0; }
@@ -450,18 +307,6 @@
                 <div class="shimmer sk-btn"></div>
             </div>
         </div>
-        <!-- Dummy Rows to simulate layout -->
-        <div class="sk-section">
-            <div class="shimmer sk-header"></div>
-            <div class="sk-row">
-                <div class="shimmer sk-card"></div>
-                <div class="shimmer sk-card"></div>
-                <div class="shimmer sk-card"></div>
-                <div class="shimmer sk-card"></div>
-                <div class="shimmer sk-card"></div>
-                <div class="shimmer sk-card"></div>
-            </div>
-        </div>
         <div class="sk-section">
             <div class="shimmer sk-header"></div>
             <div class="sk-row">
@@ -506,7 +351,6 @@
 
     <div id="app-content" class="section section-home"></div>
 
-    <!-- Iframe Bridge to Parser -->
     <iframe id="provider-frame"></iframe>
 
     <!-- Collections Modal -->
@@ -517,17 +361,13 @@
                 <div class="modal-close" onclick="closeCollectionModal()"><i class="fas fa-times"></i></div>
             </div>
             <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;" id="collectionTargetName">Add to sections:</p>
-            
             <div class="collection-input-group">
                 <input type="text" class="collection-input" id="newSectionInput" placeholder="Create section...">
                 <button class="btn btn-play" style="padding: 8px 15px; font-size: 0.9rem;" onclick="createNewSection()">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
-            
-            <div class="collection-list" id="collectionList">
-                <!-- Checkboxes populated here -->
-            </div>
+            <div class="collection-list" id="collectionList"></div>
         </div>
     </div>
 
@@ -541,14 +381,10 @@
                     <div class="player-title" id="playerTitle">Channel Name</div>
                     <div style="width: 40px;"></div>
                 </div>
-                
                 <div class="player-center">
                     <div class="big-play-btn" onclick="event.stopPropagation(); togglePlay()"><i class="fas fa-pause" id="centerPlayIcon"></i></div>
                 </div>
-                
                 <div class="player-bottom" onclick="event.stopPropagation()">
-                    
-                    <!-- LEFT GROUP -->
                     <div class="player-controls-left">
                         <button class="control-btn" onclick="togglePlay()" data-tooltip="Play/Pause"><i class="fas fa-pause" id="bottomPlayIcon"></i></button>
                         <button class="control-btn" onclick="toggleMute()" data-tooltip="Mute"><i class="fas fa-volume-up" id="volumeIcon"></i></button>
@@ -558,15 +394,12 @@
                             <button class="control-btn small" onclick="adjustSpeed(0.25)">+</button>
                         </div>
                     </div>
-
-                    <!-- RIGHT GROUP -->
                     <div class="player-controls-right">
                         <button class="control-btn" onclick="openCollectionModalForCurrent()" data-tooltip="Add to Section"><i class="fas fa-list"></i></button>
                         <button class="control-btn fav-btn" id="favBtn" onclick="toggleFavorite()" data-tooltip="Add to Favorites"><i class="far fa-heart"></i></button>
                         <button class="control-btn remove-btn" onclick="removeCurrentChannel(true)" data-tooltip="Remove Channel"><i class="fas fa-trash-alt"></i></button>
                         <button class="control-btn" onclick="toggleFullscreen()" data-tooltip="Fullscreen"><i class="fas fa-expand"></i></button>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -626,20 +459,13 @@
         }
 
         function loadData(channels) {
-            // Hide the Skeleton Loader and Show Content
             const skeleton = document.getElementById('skeleton-loader');
-            
             allChannels = channels.filter(c => !blacklistedUrls.includes(c.url));
-            
             if(allChannels.length === 0) {
-                // Simple error state if no channels found
                 skeleton.innerHTML = "<div style='text-align:center; padding-top:200px;'>Provider returned 0 channels.</div>";
                 return;
             }
-
-            // Data ready
             skeleton.style.display = 'none';
-            
             updateDropdownMenu();
             renderAllSections(); 
             initHero(); 
@@ -661,28 +487,20 @@
 
         function updateDropdownMenu(activeName = 'Home') {
             const menu = document.getElementById('navDropdownMenu');
-            
             let html = `<div class="nav-item ${activeName === 'Home' ? 'active' : ''}" onclick="resetSearch(); renderAllSections()">Home</div>`;
             html += `<div class="nav-divider"></div>`;
             html += `<div class="nav-item ${activeName === 'My Favorites' ? 'active' : ''}" onclick="resetSearch(); renderFavorites()">My Favorites</div>`;
-            
             if(customSections.length > 0) {
                 html += `<div class="nav-header">My Sections</div>`;
                 customSections.forEach(sec => {
-                    html += `
-                    <div class="nav-item ${activeName === sec.name ? 'active' : ''}">
-                        <span onclick="resetSearch(); filterByCustomSection('${sec.id}')" style="flex-grow:1">${sec.name}</span>
-                        <span class="delete-section-btn" onclick="deleteSection('${sec.id}')"><i class="fas fa-trash"></i></span>
-                    </div>`;
+                    html += `<div class="nav-item ${activeName === sec.name ? 'active' : ''}"><span onclick="resetSearch(); filterByCustomSection('${sec.id}')" style="flex-grow:1">${sec.name}</span><span class="delete-section-btn" onclick="deleteSection('${sec.id}')"><i class="fas fa-trash"></i></span></div>`;
                 });
             }
-
             html += `<div class="nav-divider"></div><div class="nav-header">Categories</div>`;
             STANDARD_SECTIONS.forEach(sec => {
                 html += `<div class="nav-item ${activeName === sec ? 'active' : ''}" onclick="resetSearch(); filterBySection('${sec}')">${sec}</div>`;
             });
             html += `<div class="nav-item ${activeName === 'Other' ? 'active' : ''}" onclick="resetSearch(); filterBySection('Other')">Other</div>`;
-
             menu.innerHTML = html;
         }
 
@@ -709,9 +527,7 @@
             });
 
             const otherChannels = allChannels.filter(c => {
-                const isTargeted = STANDARD_SECTIONS.some(section => 
-                    c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
-                );
+                const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
                 return !isTargeted;
             });
             if(otherChannels.length > 0) renderRow("Other", otherChannels);
@@ -725,7 +541,6 @@
             const contentDiv = document.getElementById('app-content');
             contentDiv.classList.remove('section-home');
             contentDiv.classList.add('section-grid');
-            
             const channels = allChannels.filter(c => section.channels.includes(c.name));
             if(channels.length > 0) renderGrid(section.name, channels);
             else contentDiv.innerHTML = `<div class="section-title">${section.name}</div><div style="padding:20px">Section empty. Add channels via player.</div>`;
@@ -737,19 +552,15 @@
             const contentDiv = document.getElementById('app-content');
             contentDiv.classList.remove('section-home');
             contentDiv.classList.add('section-grid');
-
             let sectionChannels = [];
             if (sectionName === 'Other') {
                 sectionChannels = allChannels.filter(c => {
-                    const isTargeted = STANDARD_SECTIONS.some(section => 
-                        c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
-                    );
+                    const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
                     return !isTargeted;
                 });
             } else {
                 sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
             }
-
             if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
             else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
         }
@@ -800,15 +611,42 @@
             document.getElementById('app-content').innerHTML = html;
         }
 
+        // --- BEAUTIFUL GRADIENT GENERATOR ---
+        function getGradient(str) {
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // Palettes: Deep Red, Dark Blue, Dark Purple, Charcoal
+            const palettes = [
+                "linear-gradient(135deg, #8E0E00 0%, #1F1C18 100%)", 
+                "linear-gradient(135deg, #000428 0%, #004e92 100%)",
+                "linear-gradient(135deg, #240b36 0%, #c31432 100%)",
+                "linear-gradient(135deg, #232526 0%, #414345 100%)",
+                "linear-gradient(135deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%)",
+                "linear-gradient(135deg, #141E30 0%, #243B55 100%)"
+            ];
+            const index = Math.abs(hash) % palettes.length;
+            return palettes[index];
+        }
+
         function createCardHtml(channel) {
-            const fallbackImg = `https://placehold.co/240x135/222/FFF?text=${encodeURIComponent(channel.name.substring(0,10))}`;
-            const logoSrc = channel.logo && channel.logo.length > 5 ? channel.logo : fallbackImg;
+            // Determine if we have a potential logo or need fallback immediately
+            const hasLogo = channel.logo && channel.logo.length > 5;
             const isFav = favoriteNames.includes(channel.name);
             const channelStr = JSON.stringify(channel).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+            const gradientBg = getGradient(channel.name);
+            
+            // Logic:
+            // 1. Container background is set to gradient.
+            // 2. Img is on top. If img loads, it covers gradient. If error, img is hidden, revealing gradient.
+            // 3. Title is behind image, but visible if gradient is visible.
             
             return `
-            <div class="card" onclick='openPlayer(${channelStr})'>
-                <img src="${logoSrc}" onerror="this.src='${fallbackImg}'" alt="${channel.name}">
+            <div class="card" onclick='openPlayer(${channelStr})' style="background: ${gradientBg}">
+                <div class="card-fallback-title">${channel.name}</div>
+                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" alt="${channel.name}">` : ''}
                 <div class="card-info">
                     <div class="card-actions">
                         <div class="action-btn" onclick="event.stopPropagation(); openCollectionModal(${channelStr})"><i class="fas fa-list"></i></div>
@@ -831,11 +669,9 @@
             const input = document.getElementById('newSectionInput');
             const name = input.value.trim();
             if(!name) return;
-            
             const newId = 'sec_' + Date.now();
             customSections.push({ id: newId, name: name, channels: [] });
             localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
-            
             input.value = '';
             updateDropdownMenu(document.querySelector('.nav-item.active').innerText);
             refreshCollectionModal();
@@ -873,19 +709,14 @@
         function refreshCollectionModal() {
             const list = document.getElementById('collectionList');
             list.innerHTML = '';
-            
             if(customSections.length === 0) {
                 list.innerHTML = '<div style="color:#666; padding:10px; text-align:center;">No custom sections.<br>Create one above.</div>';
             }
-
             customSections.forEach(sec => {
                 const isPresent = sec.channels.includes(targetCollectionChannel.name);
                 const item = document.createElement('div');
                 item.className = 'collection-item';
-                item.innerHTML = `
-                    <input type="checkbox" class="checkbox-custom" ${isPresent ? 'checked' : ''}>
-                    <span>${sec.name}</span>
-                `;
+                item.innerHTML = `<input type="checkbox" class="checkbox-custom" ${isPresent ? 'checked' : ''}><span>${sec.name}</span>`;
                 item.onclick = (e) => {
                     if(e.target.type !== 'checkbox') {
                         const cb = item.querySelector('input');
@@ -953,11 +784,9 @@
             if(heroHls) heroHls.destroy();
             heroChannel = pool[Math.floor(Math.random() * pool.length)];
             document.getElementById('hero-title').innerText = heroChannel.name;
-            
             const video = document.getElementById('hero-video-bg');
             video.muted = true; 
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
-
             if (Hls.isSupported()) {
                 heroHls = new Hls({ enableWorker: true, lowLatencyMode: true });
                 heroHls.loadSource(heroChannel.url);
@@ -986,13 +815,11 @@
             const heroVid = document.getElementById('hero-video-bg');
             heroVid.muted = true;
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
-
             const video = document.getElementById('mainVideo');
             video.playbackRate = 1.0;
             document.getElementById('speedDisplay').innerText = "1.0x";
             document.getElementById('videoModal').style.display = 'flex';
             updateFavButtonState();
-
             if (Hls.isSupported()) {
                 if(playerHls) playerHls.destroy();
                 playerHls = new Hls({ manifestLoadingTimeOut: 5000 });
@@ -1034,7 +861,6 @@
                 sec.channels = sec.channels.filter(c => c !== channel.name);
             });
             localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
-
             allChannels = allChannels.filter(c => c.url !== channel.url);
             if(refreshUI) {
                 const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
@@ -1059,7 +885,6 @@
             if (index === -1) favoriteNames.push(currentChannel.name); else favoriteNames.splice(index, 1);
             localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames));
             updateFavButtonState();
-            
             const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
             if(active === 'My Favorites') renderFavorites();
             if(active === 'Home') renderAllSections();
@@ -1095,7 +920,6 @@
         function togglePlayerControls() {
             const overlay = document.getElementById('playerOverlay');
             const isMobile = window.innerWidth <= 768;
-            
             if(isMobile) {
                 if(overlay.classList.contains('show-mobile')) {
                     overlay.classList.remove('show-mobile');
