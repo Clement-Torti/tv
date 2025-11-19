@@ -1,0 +1,13 @@
+{
+    "manifest_version": 3,
+    "name": "Netflix TV Link",
+    "version": "1.0",
+    "description": "Adds a direct link to Clement TV in the Netflix navigation bar.",
+    "content_scripts": [
+      {
+        "matches": ["https://www.netflix.com/*"],
+        "js": ["content.js"],
+        "run_at": "document_idle"
+      }
+    ]
+  }
