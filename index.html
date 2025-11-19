@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clement+ | Live TV</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        /* --- Keep previous CSS exactly as is --- */
+        :root {
+            --primary: #e50914;
+            --dark: #141414;
+            --gray: #808080;
+            --modal-bg: #000;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+        body {
+            background-color: var(--dark);
+            color: white;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* --- Progress Bar --- */
+        #progress-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+            z-index: 2000; background: transparent; pointer-events: none; transition: opacity 0.5s;
+        }
+        #progress-bar {
+            height: 100%; background: var(--primary); width: 0%;
+            transition: width 0.3s ease; box-shadow: 0 0 10px var(--primary);
+        }
+
+        /* --- Navigation --- */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 20px 4%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
+            z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            transition: 0.3s; gap: 20px;
+        }
+        nav.scrolled { background-color: var(--dark); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        .nav-left { display: flex; align-items: center; gap: 40px; flex: 1; }
+        .logo { color: var(--primary); font-size: 1.8rem; font-weight: bold; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
+        
+        .nav-menu { display: flex; list-style: none; gap: 20px; overflow-x: auto; scrollbar-width: none; }
+        .nav-menu::-webkit-scrollbar { display: none; }
+        .nav-menu li { cursor: pointer; opacity: 0.7; transition: 0.3s; font-size: 0.9rem; white-space: nowrap; }
+        .nav-menu li:hover, .nav-menu li.active { opacity: 1; font-weight: bold; color: white; }
+
+        .search-container { position: relative; display: flex; align-items: center; }
+        .search-input {
+            background: rgba(0,0,0,0.75); border: 1px solid #333; color: white;
+            padding: 8px 15px 8px 35px; border-radius: 20px; transition: 0.3s; width: 200px;
+        }
+        .search-input:focus { border-color: var(--primary); width: 280px; background: black; }
+        .search-icon { position: absolute; left: 12px; color: #aaa; pointer-events: none; font-size: 0.8rem; }
+
+        /* --- Hero Section --- */
+        .hero {
+            height: 80vh; 
+            position: relative; display: flex; align-items: center; padding-left: 4%; overflow: hidden;
+            transition: height 0.5s;
+        }
+        .hero.hidden { display: none; }
+
+        #hero-video-bg {
+            position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+            object-fit: cover; transform: translate(-50%, -50%) scale(1.2);
+            z-index: 0; opacity: 0.6; transition: opacity 1s;
+        }
+
+        .hero::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to top, var(--dark) 20%, transparent 60%),
+                        linear-gradient(to right, var(--dark) 0%, transparent 50%);
+            z-index: 1;
+        }
+
+        .hero-content { position: relative; z-index: 2; max-width: 600px; margin-bottom: 40px; }
+        .hero-label { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px;}
+        .hero-title { font-size: 3.5rem; margin-bottom: 15px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8); line-height: 1.1; }
+        .hero-desc { font-size: 1.2rem; margin-bottom: 25px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); color: #ddd; }
+        .hero-buttons { display: flex; gap: 10px; }
+
+        .hero-mute-btn {
+            position: absolute; right: 4%; bottom: 35%; z-index: 20;
+            width: 45px; height: 45px; border-radius: 50%;
+            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.5);
+            color: white; font-size: 1rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .hero-mute-btn:hover { background: white; color: black; transform: scale(1.1); }
+
+        .btn {
+            padding: 12px 30px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 4px;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: 0.2s;
+        }
+        .btn-play { background: white; color: black; }
+        .btn-play:hover { background: #ddd; }
+        .btn-info { background: rgba(109, 109, 109, 0.7); color: white; }
+        .btn-info:hover { background: rgba(109, 109, 109, 0.9); }
+
+        /* --- Content Areas --- */
+        .section-home { 
+            padding: 0 0 40px 0; position: relative; z-index: 10; 
+            margin-top: -220px; min-height: 500px; 
+        }
+        .section-grid {
+            padding: 100px 4% 40px 4%; position: relative;
+            z-index: 10; margin-top: 0; min-height: 100vh;
+        }
+        .section-title { 
+            font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; color: #e5e5e5; 
+            margin-top: 40px; display: flex; align-items: center; gap: 10px; padding-left: 4%; 
+        }
+        .section-home > .section-title:first-child { margin-top: 0; }
+        .section-grid > .section-title { padding-left: 0; margin-top: 0; margin-bottom: 20px; font-size: 2rem; border-bottom: 1px solid #333; padding-bottom: 10px;}
+
+        .row-container { position: relative; width: 100%; }
+        .row {
+            display: flex; overflow-x: auto; gap: 10px; padding: 0 4% 30px 4%;
+            scrollbar-width: none; scroll-behavior: smooth;
+        }
+        .row::-webkit-scrollbar { display: none; }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px; width: 100%;
+        }
+
+        .scroll-btn {
+            position: absolute; top: 0; bottom: 30px; width: 50px;
+            background: rgba(0,0,0,0.5); color: white; border: none; z-index: 20;
+            cursor: pointer; font-size: 2rem; display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s, background 0.3s;
+        }
+        .scroll-btn:hover { background: rgba(0,0,0,0.8); }
+        .row-container:hover .scroll-btn { opacity: 1; }
+        .scroll-btn.left { left: 0; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+        .scroll-btn.right { right: 0; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+
+        .card {
+            flex: 0 0 auto; width: 240px; height: 135px; background: #222; border-radius: 4px;
+            position: relative; cursor: pointer; transition: transform 0.3s ease; overflow: hidden;
+        }
+        .grid-container .card { width: 100%; height: auto; aspect-ratio: 16/9; }
+        .card:hover { transform: scale(1.1); z-index: 10; box-shadow: 0 0 15px rgba(0,0,0,0.7); }
+        .card img { width: 100%; height: 100%; object-fit: contain; background: #000; opacity: 0.9; padding: 10px; transition: 0.3s; }
+        .card:hover img { opacity: 0.4; }
+        .card-info {
+            position: absolute; bottom: 0; left: 0; right: 0; top: 0; display: flex; flex-direction: column;
+            justify-content: flex-end; padding: 10px; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            opacity: 0; transition: 0.3s;
+        }
+        .card:hover .card-info { opacity: 1; }
+        .card-actions { display: flex; gap: 10px; margin-bottom: 5px; }
+        .action-btn { 
+            width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); 
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; background: rgba(0,0,0,0.5); color: white;
+        }
+        .action-btn:hover { border-color: white; background: white; color: black; }
+        .badge-live { background: #e50914; color: white; font-size: 0.6rem; padding: 2px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; font-weight: bold;}
+        .channel-name { font-size: 0.9rem; font-weight: bold; color: white; vertical-align: middle; }
+
+        /* --- Player Modal --- */
+        .video-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000;
+            z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .video-wrapper { width: 100%; height: 100%; position: relative; background: black; }
+        video#mainVideo { width: 100%; height: 100%; object-fit: contain; }
+
+        .player-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%);
+            opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 40px; pointer-events: none;
+        }
+        .video-wrapper:hover .player-overlay, .video-wrapper.paused .player-overlay { opacity: 1; pointer-events: auto; }
+
+        .player-top { display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { font-size: 2.5rem; cursor: pointer; transition: 0.2s; }
+        .back-btn:hover { transform: scale(1.1); }
+        .player-title { font-size: 1.5rem; font-weight: bold; margin-left: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .player-center { display: flex; justify-content: center; align-items: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .big-play-btn { font-size: 4rem; cursor: pointer; opacity: 0.8; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); transition: 0.2s; }
+        .big-play-btn:hover { transform: scale(1.2); opacity: 1; }
+        .player-bottom { display: flex; align-items: center; gap: 20px; padding-bottom: 20px; }
+        
+        .control-btn { font-size: 1.5rem; cursor: pointer; color: #ccc; transition: 0.2s; background: none; border: none; position: relative; }
+        .control-btn:hover { color: white; transform: scale(1.1); }
+        .control-btn.remove-btn:hover { color: #e50914; }
+        .control-btn.fav-btn.active { color: #e50914; }
+        
+        .speed-controls { display: flex; align-items: center; background: rgba(255,255,255,0.15); padding: 5px 10px; border-radius: 5px; gap: 10px; margin-left: 10px; }
+        .speed-display { font-weight: bold; font-size: 0.9rem; width: 50px; text-align: center; }
+        .control-btn.small { font-size: 1.1rem; }
+        .control-btn.small:hover { transform: scale(1.2); color: var(--primary); }
+
+        .control-btn::after {
+            content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+            background: white; color: black; font-size: 0.8rem; padding: 4px 8px; border-radius: 3px; opacity: 0; pointer-events: none; transition: 0.2s; white-space: nowrap; font-weight: bold;
+        }
+        .control-btn:hover::after { opacity: 1; }
+        
+        #loading-status { font-size: 1.2rem; text-align: center; padding: 100px 20px; color: #999; }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(229, 9, 20, 0.9); color: white; padding: 10px 20px;
+            border-radius: 4px; z-index: 5000; font-weight: bold; display: none;
+        }
+
+        /* Hide the "Scraper" Iframe */
+        #provider-frame { display: none; width: 0; height: 0; border: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <nav id="navbar">
+        <div class="nav-left">
+            <div class="logo" onclick="location.reload()">Clement+</div>
+            <ul class="nav-menu" id="nav-list"></ul>
+        </div>
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" class="search-input" placeholder="Search channels..." id="searchInput" oninput="handleSearch(this.value)">
+        </div>
+    </nav>
+
+    <header class="hero hidden" id="hero">
+        <video id="hero-video-bg" autoplay muted playsinline></video>
+        <div class="hero-content">
+            <div class="hero-label">Now Streaming</div>
+            <h1 class="hero-title" id="hero-title">Loading...</h1>
+            <p class="hero-desc" id="hero-desc">Experience the best live TV. Curated channels, instant access.</p>
+            <div class="hero-buttons">
+                <button class="btn btn-play" onclick="playHeroChannel()"><i class="fas fa-play"></i> Watch Fullscreen</button>
+                <button class="btn btn-info" onclick="playRandom()"><i class="fas fa-random"></i> Random</button>
+            </div>
+        </div>
+        <button class="hero-mute-btn" onclick="toggleHeroMute()" title="Mute/Unmute">
+            <i class="fas fa-volume-mute" id="heroMuteIcon"></i>
+        </button>
+    </header>
+
+    <div id="loading-status">
+        <i class="fas fa-satellite-dish fa-spin"></i> Connecting to Public Directory...
+    </div>
+    <div id="toast" class="toast">Channel Unavailable - Removed</div>
+
+    <div id="app-content" class="section section-home"></div>
+
+    <!-- The Iframe "Bridge" to the Public Directory -->
+    <iframe id="provider-frame"></iframe>
+
+    <!-- Player Modal -->
+    <div class="video-modal" id="videoModal">
+        <div class="video-wrapper" id="videoWrapper">
+            <video id="mainVideo" playsinline></video>
+            <div class="player-overlay">
+                <div class="player-top">
+                    <div class="back-btn" onclick="closePlayer()"><i class="fas fa-arrow-left"></i></div>
+                    <div class="player-title" id="playerTitle">Channel Name</div>
+                    <div style="width: 40px;"></div>
+                </div>
+                <div class="player-center">
+                    <div class="big-play-btn" onclick="togglePlay()"><i class="fas fa-pause" id="centerPlayIcon"></i></div>
+                </div>
+                <div class="player-bottom">
+                    <button class="control-btn" onclick="togglePlay()" data-tooltip="Play/Pause"><i class="fas fa-pause" id="bottomPlayIcon"></i></button>
+                    <button class="control-btn" onclick="toggleMute()" data-tooltip="Mute"><i class="fas fa-volume-up" id="volumeIcon"></i></button>
+                    <div class="speed-controls">
+                        <button class="control-btn small" onclick="adjustSpeed(-0.05)">-</button>
+                        <span class="speed-display" id="speedDisplay">1.00x</span>
+                        <button class="control-btn small" onclick="adjustSpeed(0.05)">+</button>
+                    </div>
+                    <div style="flex-grow: 1;"></div>
+                    <button class="control-btn fav-btn" id="favBtn" onclick="toggleFavorite()" data-tooltip="Add to Favorites"><i class="far fa-heart"></i></button>
+                    <button class="control-btn remove-btn" onclick="removeCurrentChannel(true)" data-tooltip="Remove Channel"><i class="fas fa-trash-alt"></i></button>
+                    <button class="control-btn" onclick="toggleFullscreen()" data-tooltip="Fullscreen"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // IMPORTANT: Set this to where you host the provider.html
+        // Use './provider.html' if they are in the same folder.
+        const PROVIDER_URL = 'https://clement-torti.github.io/scrapper/'; 
+        
+        const TARGET_SECTIONS = ['News', 'Kids', 'Movies', 'Music', 'Series', 'Sports', 'Documentary'];
+
+        // --- STATE ---
+        let allChannels = [];
+        let favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
+        let blacklistedUrls = JSON.parse(localStorage.getItem('clement_blacklist')) || [];
+        let testedUrls = new Set(JSON.parse(localStorage.getItem('clement_tested_cache')) || []);
+        
+        let totalChannelsToCheck = 0;
+        let processedChannelsCount = 0;
+        let currentChannel = null;
+        let playerHls = null;
+        let heroHls = null;
+        let heroChannel = null;
+
+        // --- 1. BRIDGE TO PROVIDER ---
+        function connectToProvider() {
+            const frame = document.getElementById('provider-frame');
+            frame.src = PROVIDER_URL;
+
+            // Listen for the "Handshake" from the provider
+            window.addEventListener('message', (event) => {
+                // Security check: In production, check event.origin here!
+                if (event.data.type === 'CHANNELS_LOADED') {
+                    console.log("Received data from Provider");
+                    loadData(event.data.data);
+                }
+            });
+        }
+
+        function loadData(channels) {
+            const status = document.getElementById('loading-status');
+            allChannels = channels.filter(c => !blacklistedUrls.includes(c.url));
+            
+            if(allChannels.length === 0) {
+                status.innerHTML = "Provider returned 0 channels.";
+                return;
+            }
+
+            status.style.display = 'none';
+            setupNav();
+            renderAllSections(); 
+            initHero(); 
+            startBackgroundLinkChecker();
+        }
+
+        // --- 2. BACKGROUND LINK CHECKER (Same as before) ---
+        function startBackgroundLinkChecker() {
+            const queue = allChannels.filter(c => !blacklistedUrls.includes(c.url) && !testedUrls.has(c.url));
+            if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
+            totalChannelsToCheck = queue.length;
+            processedChannelsCount = 0;
+            processQueue(queue);
+        }
+        function processQueue(queue) {
+            if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
+            const candidate = queue.shift();
+            if (blacklistedUrls.includes(candidate.url)) { processedChannelsCount++; updateProgressBar((processedChannelsCount / totalChannelsToCheck) * 100); processQueue(queue); return; }
+            checkChannelConnectivity(candidate, (isWorking) => {
+                testedUrls.add(candidate.url);
+                localStorage.setItem('clement_tested_cache', JSON.stringify([...testedUrls]));
+                processedChannelsCount++;
+                updateProgressBar((processedChannelsCount / totalChannelsToCheck) * 100);
+                if (!isWorking) blacklistChannel(candidate, false);
+                setTimeout(() => processQueue(queue), 1000);
+            });
+        }
+        function updateProgressBar(percentage) { document.getElementById('progress-bar').style.width = percentage + '%'; }
+        function checkChannelConnectivity(channel, callback) {
+            if (!Hls.isSupported()) { callback(true); return; }
+            const hlsTest = new Hls({ enableWorker: false, manifestLoadingTimeOut: 5000 });
+            let finished = false;
+            const finish = (result) => { if(!finished) { finished = true; hlsTest.destroy(); callback(result); } };
+            hlsTest.loadSource(channel.url);
+            hlsTest.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
+            hlsTest.on(Hls.Events.ERROR, (event, data) => { if (data.fatal) finish(false); });
+            setTimeout(() => finish(false), 6000);
+        }
+
+        // --- 3. HERO LOGIC (Same) ---
+        function initHero() {
+            const candidates = allChannels.filter(c => c.groups.some(g => g.includes('Sport') || g.includes('Movie')));
+            if(candidates.length > 0) playHeroRandom(candidates);
+        }
+
+        function playHeroRandom(pool) {
+            if(heroHls) heroHls.destroy();
+            heroChannel = pool[Math.floor(Math.random() * pool.length)];
+            document.getElementById('hero-title').innerText = heroChannel.name;
+            
+            const video = document.getElementById('hero-video-bg');
+            video.muted = true; 
+            document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+
+            if (Hls.isSupported()) {
+                heroHls = new Hls({ enableWorker: true, lowLatencyMode: true });
+                heroHls.loadSource(heroChannel.url);
+                heroHls.attachMedia(video);
+                heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
+                heroHls.on(Hls.Events.ERROR, (e, data) => { if(data.fatal) setTimeout(() => playHeroRandom(pool), 1000); });
+            }
+        }
+
+        function toggleHeroMute() {
+            const video = document.getElementById('hero-video-bg');
+            video.muted = !video.muted;
+            document.getElementById('heroMuteIcon').className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+        }
+
+        function playHeroChannel() { if(heroChannel) openPlayer(heroChannel); }
+        function playRandom() { if(allChannels.length > 0) openPlayer(allChannels[Math.floor(Math.random() * allChannels.length)]); }
+
+        // --- 4. MAIN PLAYER (Same) ---
+        function openPlayer(channel) {
+            currentChannel = channel;
+            document.getElementById('playerTitle').innerText = channel.name;
+            // Ensure background is muted when modal opens
+            const heroVid = document.getElementById('hero-video-bg');
+            heroVid.muted = true;
+            document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+
+            const video = document.getElementById('mainVideo');
+            video.playbackRate = 1.0;
+            document.getElementById('speedDisplay').innerText = "1.00x";
+            document.getElementById('videoModal').style.display = 'flex';
+            updateFavButtonState();
+
+            if (Hls.isSupported()) {
+                if(playerHls) playerHls.destroy();
+                playerHls = new Hls({ manifestLoadingTimeOut: 5000 });
+                playerHls.loadSource(channel.url);
+                playerHls.attachMedia(video);
+                playerHls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                playerHls.on(Hls.Events.ERROR, (event, data) => { if (data.fatal) { blacklistChannel(channel, true); closePlayer(); showToast(`Stream unavailable: ${channel.name} removed.`); } });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = channel.url;
+                video.addEventListener('loadedmetadata', () => video.play());
+                video.addEventListener('error', () => { blacklistChannel(channel, true); closePlayer(); });
+            }
+        }
+
+        function adjustSpeed(delta) {
+            const video = document.getElementById('mainVideo');
+            let newSpeed = Math.max(0.25, Math.min(4.0, video.playbackRate + delta));
+            newSpeed = Math.round(newSpeed * 100) / 100;
+            video.playbackRate = newSpeed;
+            document.getElementById('speedDisplay').innerText = newSpeed.toFixed(2) + "x";
+        }
+
+        function closePlayer() {
+            const video = document.getElementById('mainVideo');
+            video.pause(); video.src = "";
+            if(playerHls) playerHls.destroy();
+            document.getElementById('videoModal').style.display = 'none';
+        }
+
+        // --- 5. UI NAVIGATION & RENDERING (Same) ---
+        const contentDiv = document.getElementById('app-content');
+        const navList = document.getElementById('nav-list');
+
+        function setupNav() {
+            let html = `<li onclick="resetSearch(); renderAllSections()" class="active">Home</li>`;
+            html += `<li onclick="resetSearch(); renderFavorites()">My List</li>`;
+            TARGET_SECTIONS.forEach(section => html += `<li onclick="resetSearch(); filterBySection('${section}')">${section}</li>`);
+            navList.innerHTML = html;
+        }
+
+        function updateNavActive(name) {
+            document.querySelectorAll('.nav-menu li').forEach(item => {
+                if(item.innerText === name) item.classList.add('active'); else item.classList.remove('active');
+            });
+        }
+
+        function renderAllSections() {
+            updateNavActive('Home');
+            document.getElementById('hero').classList.remove('hidden');
+            contentDiv.classList.remove('section-grid');
+            contentDiv.classList.add('section-home');
+            contentDiv.innerHTML = '';
+            renderRow("My Favorites", allChannels.filter(c => favoriteNames.includes(c.name)), true);
+            TARGET_SECTIONS.forEach(section => {
+                const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
+                if(sectionChannels.length > 0) renderRow(section, sectionChannels);
+            });
+        }
+
+        function filterBySection(sectionName) {
+            updateNavActive(sectionName);
+            document.getElementById('hero').classList.add('hidden');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
+            if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
+            else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
+        }
+
+        function renderFavorites() {
+            updateNavActive('My List');
+            document.getElementById('hero').classList.add('hidden');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            const favs = allChannels.filter(c => favoriteNames.includes(c.name));
+            if(favs.length > 0) renderGrid("My Favorites", favs);
+            else contentDiv.innerHTML = `<div class="section-title">My Favorites</div><div style="padding:20px">No favorites yet.</div>`;
+        }
+
+        function handleSearch(query) {
+            if(!query) { renderAllSections(); return; }
+            document.querySelectorAll('.nav-menu li').forEach(item => item.classList.remove('active'));
+            document.getElementById('hero').classList.add('hidden');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            const lowerQ = query.toLowerCase();
+            const results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
+            if(results.length > 0) renderGrid(`Search: "${query}"`, results);
+            else contentDiv.innerHTML = `<div class="section-title">Search</div><div style="padding:20px">No results.</div>`;
+        }
+
+        function renderRow(title, channels, isFavRow = false) {
+            if(channels.length === 0 && !isFavRow) return;
+            if(channels.length === 0 && isFavRow) return;
+            const rowId = 'row-' + title.replace(/[^a-zA-Z0-9]/g, '-');
+            const cards = channels.map(c => createCardHtml(c)).join('');
+            const html = `
+                <div class="section-title">${isFavRow ? '<i class="fas fa-heart" style="color:red"></i> ' : ''}${title}</div>
+                <div class="row-container">
+                    <button class="scroll-btn left" onclick="scrollRow('${rowId}', -1)"><i class="fas fa-chevron-left"></i></button>
+                    <div class="row" id="${rowId}">${cards}</div>
+                    <button class="scroll-btn right" onclick="scrollRow('${rowId}', 1)"><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            contentDiv.insertAdjacentHTML('beforeend', html);
+        }
+
+        function renderGrid(title, channels) {
+            const cards = channels.map(c => createCardHtml(c)).join('');
+            const html = `<div class="section-title">${title}</div><div class="grid-container">${cards}</div>`;
+            contentDiv.innerHTML = html;
+        }
+
+        function createCardHtml(channel) {
+            const fallbackImg = `https://placehold.co/240x135/222/FFF?text=${encodeURIComponent(channel.name.substring(0,10))}`;
+            const logoSrc = channel.logo && channel.logo.length > 5 ? channel.logo : fallbackImg;
+            const isFav = favoriteNames.includes(channel.name);
+            return `
+            <div class="card" onclick='openPlayer(${JSON.stringify(channel).replace(/'/g, "&#39;")})'>
+                <img src="${logoSrc}" onerror="this.src='${fallbackImg}'" alt="${channel.name}">
+                <div class="card-info">
+                    <div class="card-actions">
+                        <div class="action-btn" style="${isFav ? 'background:white; color:red;' : ''}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></div>
+                        <div class="action-btn"><i class="fas fa-play"></i></div>
+                    </div>
+                    <div><span class="badge-live">LIVE</span><span class="channel-name">${channel.name}</span></div>
+                </div>
+            </div>`;
+        }
+
+        function resetSearch() { document.getElementById('searchInput').value = ''; }
+        function scrollRow(rowId, d) { const r = document.getElementById(rowId); if(r) r.scrollBy({ left: d * 500, behavior: 'smooth' }); }
+
+        // --- UTILS ---
+        function blacklistChannel(channel, refreshUI = true) {
+            if(!blacklistedUrls.includes(channel.url)) {
+                blacklistedUrls.push(channel.url);
+                localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
+            }
+            const favIndex = favoriteNames.indexOf(channel.name);
+            if (favIndex > -1) { favoriteNames.splice(favIndex, 1); localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames)); }
+            allChannels = allChannels.filter(c => c.url !== channel.url);
+            if(refreshUI) {
+                const active = document.querySelector('.nav-menu li.active');
+                if(active && active.innerText === 'Home') renderAllSections();
+                else if(active && active.innerText === 'My List') renderFavorites();
+                else if(active) filterBySection(active.innerText);
+            }
+        }
+
+        function removeCurrentChannel(confirmAction) {
+            if(confirmAction && !confirm("Remove this channel?")) return;
+            blacklistChannel(currentChannel, true); closePlayer();
+        }
+        
+        function toggleFavorite() {
+            if (!currentChannel) return;
+            const index = favoriteNames.indexOf(currentChannel.name);
+            if (index === -1) favoriteNames.push(currentChannel.name); else favoriteNames.splice(index, 1);
+            localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames));
+            updateFavButtonState();
+            const active = document.querySelector('.nav-menu li.active');
+            if(active && active.innerText === 'My List') renderFavorites();
+            if(active && active.innerText === 'Home') renderAllSections();
+        }
+
+        function updateFavButtonState() {
+            const btn = document.getElementById('favBtn');
+            if (favoriteNames.includes(currentChannel.name)) { btn.classList.add('active'); btn.querySelector('i').className = 'fas fa-heart'; } 
+            else { btn.classList.remove('active'); btn.querySelector('i').className = 'far fa-heart'; }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast'); toast.innerText = msg;
+            toast.style.display = 'block'; setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        function togglePlay() { const v = document.getElementById('mainVideo'); v.paused ? v.play() : v.pause(); document.getElementById('videoWrapper').classList.toggle('paused', v.paused); }
+        function toggleMute() { const v = document.getElementById('mainVideo'); v.muted = !v.muted; document.getElementById('volumeIcon').className = v.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; }
+        function toggleFullscreen() { const w = document.getElementById('videoWrapper'); !document.fullscreenElement ? w.requestFullscreen() : document.exitFullscreen(); }
+
+        let mouseTimer;
+        document.getElementById('videoWrapper').addEventListener('mousemove', () => {
+            const w = document.getElementById('videoWrapper');
+            w.style.cursor = 'default'; document.querySelector('.player-overlay').style.opacity = '1';
+            clearTimeout(mouseTimer);
+            mouseTimer = setTimeout(() => { if(!document.getElementById('mainVideo').paused) { document.querySelector('.player-overlay').style.opacity = '0'; w.style.cursor = 'none'; } }, 3000);
+        });
+        
+        window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayer(); if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
+
+        // Start the connection
+        connectToProvider();
+    </script>
+</body>
+</html>
