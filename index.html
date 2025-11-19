@@ -426,16 +426,15 @@
                     <div class="player-controls-left">
                         <button class="control-btn" onclick="togglePlay()" data-tooltip="Play/Pause"><i class="fas fa-pause" id="bottomPlayIcon"></i></button>
                         <button class="control-btn" onclick="toggleMute()" data-tooltip="Mute"><i class="fas fa-volume-up" id="volumeIcon"></i></button>
-                    </div>
-
-                    <!-- RIGHT GROUP -->
-                    <div class="player-controls-right">
                         <div class="speed-controls">
                             <button class="control-btn small" onclick="adjustSpeed(-0.25)">-</button>
                             <span class="speed-display" id="speedDisplay">1.0x</span>
                             <button class="control-btn small" onclick="adjustSpeed(0.25)">+</button>
                         </div>
-                        
+                    </div>
+
+                    <!-- RIGHT GROUP -->
+                    <div class="player-controls-right">
                         <button class="control-btn" onclick="openCollectionModalForCurrent()" data-tooltip="Add to Section"><i class="fas fa-list"></i></button>
                         <button class="control-btn fav-btn" id="favBtn" onclick="toggleFavorite()" data-tooltip="Add to Favorites"><i class="far fa-heart"></i></button>
                         <button class="control-btn remove-btn" onclick="removeCurrentChannel(true)" data-tooltip="Remove Channel"><i class="fas fa-trash-alt"></i></button>
