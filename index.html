@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clement+ | Live TV</title>
+    <title>Clement+ | Personalized TV</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="icon" type="image/png" href="favicon.png">
@@ -12,7 +12,7 @@
             --primary: #e50914;
             --dark: #141414;
             --gray: #808080;
-            --modal-bg: #000;
+            --modal-bg: #1f1f1f;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
@@ -34,34 +34,54 @@
             transition: width 0.3s ease; box-shadow: 0 0 10px var(--primary);
         }
 
-        /* --- Navigation --- */
+        /* --- Navigation (Dropdown) --- */
         nav {
-            position: fixed; top: 0; width: 100%; padding: 20px 4%;
+            position: fixed; top: 0; width: 100%; padding: 15px 4%;
             background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
             z-index: 100; display: flex; align-items: center; justify-content: space-between;
             transition: 0.3s; gap: 20px;
         }
         nav.scrolled { background-color: var(--dark); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         
-        .nav-left { display: flex; align-items: center; gap: 40px; flex: 1; }
+        .nav-left { display: flex; align-items: center; gap: 20px; flex: 1; }
         .logo { color: var(--primary); font-size: 1.8rem; font-weight: bold; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
         
-        .nav-menu { display: flex; list-style: none; gap: 20px; overflow-x: auto; scrollbar-width: none; }
-        .nav-menu::-webkit-scrollbar { display: none; }
-        .nav-menu li { cursor: pointer; opacity: 0.7; transition: 0.3s; font-size: 0.9rem; white-space: nowrap; }
-        .nav-menu li:hover, .nav-menu li.active { opacity: 1; font-weight: bold; color: white; }
+        /* Dropdown Style */
+        .nav-dropdown-container { position: relative; }
+        .nav-dropdown-btn {
+            background: transparent; color: white; border: none; font-size: 1rem; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; opacity: 0.9;
+        }
+        .nav-dropdown-btn:hover { opacity: 1; }
+        .nav-dropdown-menu {
+            position: absolute; top: 100%; left: 0; margin-top: 10px; background: rgba(0,0,0,0.9);
+            border: 1px solid #333; border-radius: 4px; min-width: 200px; display: none; flex-direction: column;
+            padding: 10px 0; max-height: 400px; overflow-y: auto;
+        }
+        .nav-dropdown-menu.show { display: flex; }
+        .nav-item {
+            padding: 10px 20px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; white-space: nowrap;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .nav-item:hover { background: #333; color: white; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-divider { height: 1px; background: #333; margin: 5px 0; }
+        .nav-header { padding: 5px 20px; font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;}
+        
+        .delete-section-btn { color: #666; font-size: 0.8rem; padding: 2px 6px; }
+        .delete-section-btn:hover { color: var(--primary); }
 
         .search-container { position: relative; display: flex; align-items: center; }
         .search-input {
             background: rgba(0,0,0,0.75); border: 1px solid #333; color: white;
-            padding: 8px 15px 8px 35px; border-radius: 20px; transition: 0.3s; width: 200px;
+            padding: 8px 15px 8px 35px; border-radius: 20px; transition: 0.3s; width: 150px;
         }
-        .search-input:focus { border-color: var(--primary); width: 280px; background: black; }
+        .search-input:focus { border-color: var(--primary); width: 250px; background: black; }
         .search-icon { position: absolute; left: 12px; color: #aaa; pointer-events: none; font-size: 0.8rem; }
 
         /* --- Hero Section --- */
         .hero {
-            height: 80vh; 
+            height: 100vh; 
             position: relative; display: flex; align-items: center; padding-left: 4%; overflow: hidden;
             transition: height 0.5s;
         }
@@ -80,7 +100,7 @@
             z-index: 1;
         }
 
-        .hero-content { position: relative; z-index: 2; max-width: 600px; margin-bottom: 40px; }
+        .hero-content { position: relative; z-index: 2; max-width: 600px; margin-bottom: 40px; margin-top: -300px;}
         .hero-label { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px;}
         .hero-title { font-size: 3.5rem; margin-bottom: 15px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8); line-height: 1.1; }
         .hero-desc { font-size: 1.2rem; margin-bottom: 25px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); color: #ddd; }
@@ -107,7 +127,7 @@
         /* --- Content Areas --- */
         .section-home { 
             padding: 0 0 40px 0; position: relative; z-index: 10; 
-            margin-top: -220px; min-height: 500px; 
+            margin-top: -400px; min-height: 500px; 
         }
         .section-grid {
             padding: 100px 4% 40px 4%; position: relative;
@@ -166,6 +186,26 @@
         .action-btn:hover { border-color: white; background: white; color: black; }
         .badge-live { background: #e50914; color: white; font-size: 0.6rem; padding: 2px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; font-weight: bold;}
         .channel-name { font-size: 0.9rem; font-weight: bold; color: white; vertical-align: middle; }
+
+        /* --- Collection Modal --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            z-index: 4000; display: none; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #181818; width: 400px; padding: 20px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .modal-title { font-size: 1.2rem; font-weight: bold; }
+        .modal-close { cursor: pointer; font-size: 1.2rem; color: #aaa; }
+        .modal-close:hover { color: white; }
+        
+        .collection-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .collection-input { flex: 1; background: #333; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; }
+        .collection-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .collection-item { display: flex; align-items: center; gap: 10px; background: #222; padding: 10px; border-radius: 4px; cursor: pointer; }
+        .collection-item:hover { background: #333; }
+        .checkbox-custom { accent-color: var(--primary); width: 18px; height: 18px; }
 
         /* --- Player Modal --- */
         .video-modal {
@@ -228,11 +268,21 @@
     <nav id="navbar">
         <div class="nav-left">
             <div class="logo" onclick="location.reload()">Clement+</div>
-            <ul class="nav-menu" id="nav-list"></ul>
+            
+            <!-- Dropdown Navigation -->
+            <div class="nav-dropdown-container" id="navDropdown">
+                <button class="nav-dropdown-btn" onclick="toggleDropdown()">
+                    <span id="currentSectionLabel">Browse</span>
+                    <i class="fas fa-caret-down"></i>
+                </button>
+                <div class="nav-dropdown-menu" id="navDropdownMenu">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
         </div>
         <div class="search-container">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" class="search-input" placeholder="Search channels..." id="searchInput" oninput="handleSearch(this.value)">
+            <input type="text" class="search-input" placeholder="Search..." id="searchInput" oninput="handleSearch(this.value)">
         </div>
     </nav>
 
@@ -255,12 +305,34 @@
     <div id="loading-status">
         <i class="fas fa-satellite-dish fa-spin"></i> Connecting to Public Directory...
     </div>
-    <div id="toast" class="toast">Channel Unavailable - Removed</div>
+    <div id="toast" class="toast">Notification</div>
 
     <div id="app-content" class="section section-home"></div>
 
     <!-- Iframe Bridge to Parser -->
     <iframe id="provider-frame"></iframe>
+
+    <!-- Collections Modal -->
+    <div class="modal-overlay" id="collectionModal" onclick="closeCollectionModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">Manage Collections</div>
+                <div class="modal-close" onclick="closeCollectionModal()"><i class="fas fa-times"></i></div>
+            </div>
+            <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;" id="collectionTargetName">Add to sections:</p>
+            
+            <div class="collection-input-group">
+                <input type="text" class="collection-input" id="newSectionInput" placeholder="Create new section name...">
+                <button class="btn btn-play" style="padding: 8px 15px; font-size: 0.9rem;" onclick="createNewSection()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="collection-list" id="collectionList">
+                <!-- Checkboxes populated here -->
+            </div>
+        </div>
+    </div>
 
     <!-- Player Modal -->
     <div class="video-modal" id="videoModal">
@@ -284,6 +356,9 @@
                         <button class="control-btn small" onclick="adjustSpeed(0.05)">+</button>
                     </div>
                     <div style="flex-grow: 1;"></div>
+                    <!-- Collections Button -->
+                    <button class="control-btn" onclick="openCollectionModalForCurrent()" data-tooltip="Add to Section"><i class="fas fa-list"></i></button>
+                    
                     <button class="control-btn fav-btn" id="favBtn" onclick="toggleFavorite()" data-tooltip="Add to Favorites"><i class="far fa-heart"></i></button>
                     <button class="control-btn remove-btn" onclick="removeCurrentChannel(true)" data-tooltip="Remove Channel"><i class="fas fa-trash-alt"></i></button>
                     <button class="control-btn" onclick="toggleFullscreen()" data-tooltip="Fullscreen"><i class="fas fa-expand"></i></button>
@@ -295,11 +370,14 @@
     <script>
         // --- CONFIGURATION ---
         const PROVIDER_URL = 'https://clement-torti.github.io/scrapper/'; 
-        const TARGET_SECTIONS = ['News', 'Kids', 'Movies', 'Music', 'Series', 'Sports', 'Documentary'];
+        const STANDARD_SECTIONS = ['News', 'Kids', 'Movies', 'Music', 'Series', 'Sports', 'Documentary'];
 
         // --- STATE ---
         let allChannels = [];
         let favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
+        // Custom Sections Structure: [ { id: '123', name: 'My Morning', channels: ['CNN', 'BBC'] } ]
+        let customSections = JSON.parse(localStorage.getItem('clement_custom_sections')) || [];
+        
         let blacklistedUrls = JSON.parse(localStorage.getItem('clement_blacklist')) || [];
         let testedUrls = new Set(JSON.parse(localStorage.getItem('clement_tested_cache')) || []);
         
@@ -309,6 +387,7 @@
         let playerHls = null;
         let heroHls = null;
         let heroChannel = null;
+        let targetCollectionChannel = null; // Used for the modal
 
         // --- 1. BRIDGE TO PROVIDER ---
         function connectToProvider() {
@@ -332,13 +411,293 @@
             }
 
             status.style.display = 'none';
-            setupNav();
+            updateDropdownMenu();
             renderAllSections(); 
             initHero(); 
             startBackgroundLinkChecker();
         }
 
-        // --- 2. BACKGROUND LINK CHECKER ---
+        // --- 2. NAVIGATION DROPDOWN ---
+        function toggleDropdown() {
+            const menu = document.getElementById('navDropdownMenu');
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.nav-dropdown-btn') && !event.target.matches('.nav-dropdown-btn *')) {
+                const menu = document.getElementById('navDropdownMenu');
+                if (menu.classList.contains('show')) menu.classList.remove('show');
+            }
+        }
+
+        function updateDropdownMenu(activeName = 'Home') {
+            const menu = document.getElementById('navDropdownMenu');
+            const label = document.getElementById('currentSectionLabel');
+            label.innerText = activeName;
+
+            let html = `<div class="nav-item ${activeName === 'Home' ? 'active' : ''}" onclick="resetSearch(); renderAllSections()">Home</div>`;
+            html += `<div class="nav-divider"></div>`;
+            html += `<div class="nav-item ${activeName === 'My Favorites' ? 'active' : ''}" onclick="resetSearch(); renderFavorites()">My Favorites</div>`;
+            
+            // Custom Sections
+            if(customSections.length > 0) {
+                html += `<div class="nav-header">My Sections</div>`;
+                customSections.forEach(sec => {
+                    html += `
+                    <div class="nav-item ${activeName === sec.name ? 'active' : ''}">
+                        <span onclick="resetSearch(); filterByCustomSection('${sec.id}')" style="flex-grow:1">${sec.name}</span>
+                        <span class="delete-section-btn" onclick="deleteSection('${sec.id}')"><i class="fas fa-trash"></i></span>
+                    </div>`;
+                });
+            }
+
+            // Standard Sections
+            html += `<div class="nav-divider"></div><div class="nav-header">Categories</div>`;
+            STANDARD_SECTIONS.forEach(sec => {
+                html += `<div class="nav-item ${activeName === sec ? 'active' : ''}" onclick="resetSearch(); filterBySection('${sec}')">${sec}</div>`;
+            });
+            html += `<div class="nav-item ${activeName === 'Other' ? 'active' : ''}" onclick="resetSearch(); filterBySection('Other')">Other</div>`;
+
+            menu.innerHTML = html;
+        }
+
+        // --- 3. SECTION LOGIC ---
+
+        function renderAllSections() {
+            updateDropdownMenu('Home');
+            document.getElementById('hero').classList.remove('hidden');
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.classList.remove('section-grid');
+            contentDiv.classList.add('section-home');
+            contentDiv.innerHTML = '';
+
+            // 1. Favorites
+            const favs = allChannels.filter(c => favoriteNames.includes(c.name));
+            renderRow("My Favorites", favs, true);
+
+            // 2. Custom Sections
+            customSections.forEach(sec => {
+                const secChannels = allChannels.filter(c => sec.channels.includes(c.name));
+                if(secChannels.length > 0) renderRow(sec.name, secChannels);
+            });
+
+            // 3. Standard Sections
+            STANDARD_SECTIONS.forEach(section => {
+                const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
+                if(sectionChannels.length > 0) renderRow(section, sectionChannels);
+            });
+
+            // 4. Other
+            const otherChannels = allChannels.filter(c => {
+                const isTargeted = STANDARD_SECTIONS.some(section => 
+                    c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
+                );
+                return !isTargeted;
+            });
+            if(otherChannels.length > 0) renderRow("Other", otherChannels);
+        }
+
+        function filterByCustomSection(id) {
+            const section = customSections.find(s => s.id === id);
+            if(!section) return;
+            updateDropdownMenu(section.name);
+            document.getElementById('hero').classList.add('hidden');
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            
+            const channels = allChannels.filter(c => section.channels.includes(c.name));
+            if(channels.length > 0) renderGrid(section.name, channels);
+            else contentDiv.innerHTML = `<div class="section-title">${section.name}</div><div style="padding:20px">This section is empty. Add channels using the list icon on any channel.</div>`;
+        }
+
+        function filterBySection(sectionName) {
+            updateDropdownMenu(sectionName);
+            document.getElementById('hero').classList.add('hidden');
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+
+            let sectionChannels = [];
+            if (sectionName === 'Other') {
+                sectionChannels = allChannels.filter(c => {
+                    const isTargeted = STANDARD_SECTIONS.some(section => 
+                        c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
+                    );
+                    return !isTargeted;
+                });
+            } else {
+                sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
+            }
+
+            if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
+            else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
+        }
+
+        function renderFavorites() {
+            updateDropdownMenu('My Favorites');
+            document.getElementById('hero').classList.add('hidden');
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            const favs = allChannels.filter(c => favoriteNames.includes(c.name));
+            if(favs.length > 0) renderGrid("My Favorites", favs);
+            else contentDiv.innerHTML = `<div class="section-title">My Favorites</div><div style="padding:20px">No favorites yet.</div>`;
+        }
+
+        // --- 4. RENDERING HELPERS ---
+
+        function handleSearch(query) {
+            if(!query) { renderAllSections(); return; }
+            updateDropdownMenu('Search');
+            document.getElementById('hero').classList.add('hidden');
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.classList.remove('section-home');
+            contentDiv.classList.add('section-grid');
+            const lowerQ = query.toLowerCase();
+            const results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
+            if(results.length > 0) renderGrid(`Search: "${query}"`, results);
+            else contentDiv.innerHTML = `<div class="section-title">Search</div><div style="padding:20px">No results.</div>`;
+        }
+
+        function renderRow(title, channels, isFavRow = false) {
+            if(channels.length === 0 && !isFavRow) return;
+            const rowId = 'row-' + title.replace(/[^a-zA-Z0-9]/g, '-');
+            const cards = channels.map(c => createCardHtml(c)).join('');
+            const html = `
+                <div class="section-title">${isFavRow ? '<i class="fas fa-heart" style="color:red"></i> ' : ''}${title}</div>
+                <div class="row-container">
+                    <button class="scroll-btn left" onclick="scrollRow('${rowId}', -1)"><i class="fas fa-chevron-left"></i></button>
+                    <div class="row" id="${rowId}">${cards}</div>
+                    <button class="scroll-btn right" onclick="scrollRow('${rowId}', 1)"><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.insertAdjacentHTML('beforeend', html);
+        }
+
+        function renderGrid(title, channels) {
+            const cards = channels.map(c => createCardHtml(c)).join('');
+            const html = `<div class="section-title">${title}</div><div class="grid-container">${cards}</div>`;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function createCardHtml(channel) {
+            const fallbackImg = `https://placehold.co/240x135/222/FFF?text=${encodeURIComponent(channel.name.substring(0,10))}`;
+            const logoSrc = channel.logo && channel.logo.length > 5 ? channel.logo : fallbackImg;
+            const isFav = favoriteNames.includes(channel.name);
+            // We serialize channel data to pass to openPlayer
+            const channelStr = JSON.stringify(channel).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+            
+            return `
+            <div class="card" onclick='openPlayer(${channelStr})'>
+                <img src="${logoSrc}" onerror="this.src='${fallbackImg}'" alt="${channel.name}">
+                <div class="card-info">
+                    <div class="card-actions">
+                        <div class="action-btn" onclick="event.stopPropagation(); openCollectionModal(${channelStr})"><i class="fas fa-list"></i></div>
+                        <div class="action-btn" style="${isFav ? 'background:white; color:red;' : ''}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></div>
+                        <div class="action-btn"><i class="fas fa-play"></i></div>
+                    </div>
+                    <div><span class="badge-live">LIVE</span><span class="channel-name">${channel.name}</span></div>
+                </div>
+            </div>`;
+        }
+
+        function resetSearch() { document.getElementById('searchInput').value = ''; }
+        function scrollRow(rowId, d) { const r = document.getElementById(rowId); if(r) r.scrollBy({ left: d * 500, behavior: 'smooth' }); }
+
+        // --- 5. CUSTOM COLLECTIONS LOGIC ---
+
+        function createNewSection() {
+            const input = document.getElementById('newSectionInput');
+            const name = input.value.trim();
+            if(!name) return;
+            
+            const newId = 'sec_' + Date.now();
+            customSections.push({ id: newId, name: name, channels: [] });
+            localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
+            
+            input.value = '';
+            updateDropdownMenu(document.getElementById('currentSectionLabel').innerText);
+            refreshCollectionModal();
+            showToast(`Section "${name}" created`);
+        }
+
+        function deleteSection(id) {
+            event.stopPropagation();
+            if(!confirm('Delete this section?')) return;
+            customSections = customSections.filter(s => s.id !== id);
+            localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
+            updateDropdownMenu('Home');
+            renderAllSections(); // go home after delete
+        }
+
+        function openCollectionModalForCurrent() {
+            if(currentChannel) openCollectionModal(currentChannel);
+        }
+
+        function openCollectionModal(channel) {
+            targetCollectionChannel = channel;
+            document.getElementById('collectionTargetName').innerText = `Add "${channel.name}" to:`;
+            document.getElementById('collectionModal').style.display = 'flex';
+            refreshCollectionModal();
+            // Pause player if open? No, let it play in bg
+        }
+
+        function closeCollectionModal(e) {
+            if (e && e.target !== document.getElementById('collectionModal')) return;
+            document.getElementById('collectionModal').style.display = 'none';
+            targetCollectionChannel = null;
+            // If we are on the home page, refresh to show new section contents
+            const activeLabel = document.getElementById('currentSectionLabel').innerText;
+            if(activeLabel === 'Home') renderAllSections();
+        }
+
+        function refreshCollectionModal() {
+            const list = document.getElementById('collectionList');
+            list.innerHTML = '';
+            
+            if(customSections.length === 0) {
+                list.innerHTML = '<div style="color:#666; padding:10px; text-align:center;">No custom sections found.<br>Create one above.</div>';
+            }
+
+            customSections.forEach(sec => {
+                const isPresent = sec.channels.includes(targetCollectionChannel.name);
+                const item = document.createElement('div');
+                item.className = 'collection-item';
+                item.innerHTML = `
+                    <input type="checkbox" class="checkbox-custom" ${isPresent ? 'checked' : ''}>
+                    <span>${sec.name}</span>
+                `;
+                item.onclick = (e) => {
+                    if(e.target.type !== 'checkbox') {
+                        const cb = item.querySelector('input');
+                        cb.checked = !cb.checked;
+                        toggleChannelInSection(sec.id, cb.checked);
+                    } else {
+                        toggleChannelInSection(sec.id, e.target.checked);
+                    }
+                };
+                list.appendChild(item);
+            });
+        }
+
+        function toggleChannelInSection(sectionId, isAdding) {
+            const section = customSections.find(s => s.id === sectionId);
+            if(!section || !targetCollectionChannel) return;
+
+            if(isAdding) {
+                if(!section.channels.includes(targetCollectionChannel.name)) {
+                    section.channels.push(targetCollectionChannel.name);
+                }
+            } else {
+                section.channels = section.channels.filter(n => n !== targetCollectionChannel.name);
+            }
+            localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
+        }
+
+
+        // --- 6. BACKGROUND CHECKS & HERO ---
         function startBackgroundLinkChecker() {
             const queue = allChannels.filter(c => !blacklistedUrls.includes(c.url) && !testedUrls.has(c.url));
             if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
@@ -371,7 +730,6 @@
             setTimeout(() => finish(false), 6000);
         }
 
-        // --- 3. HERO LOGIC ---
         function initHero() {
             const candidates = allChannels.filter(c => c.groups.some(g => g.includes('Sport') || g.includes('Movie')));
             if(candidates.length > 0) playHeroRandom(candidates);
@@ -405,8 +763,10 @@
         function playHeroChannel() { if(heroChannel) openPlayer(heroChannel); }
         function playRandom() { if(allChannels.length > 0) openPlayer(allChannels[Math.floor(Math.random() * allChannels.length)]); }
 
-        // --- 4. MAIN PLAYER ---
+        // --- 7. PLAYER LOGIC ---
         function openPlayer(channel) {
+            // Ensure we have the full object (sometimes passed as simplified obj from click)
+            // but here we pass the full object from createCardHtml
             currentChannel = channel;
             document.getElementById('playerTitle').innerText = channel.name;
             const heroVid = document.getElementById('hero-video-bg');
@@ -448,154 +808,36 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // --- 5. UI NAVIGATION & RENDERING ---
-        const contentDiv = document.getElementById('app-content');
-        const navList = document.getElementById('nav-list');
-
-        function setupNav() {
-            let html = `<li onclick="resetSearch(); renderAllSections()" class="active">Home</li>`;
-            html += `<li onclick="resetSearch(); renderFavorites()">My List</li>`;
-            TARGET_SECTIONS.forEach(section => html += `<li onclick="resetSearch(); filterBySection('${section}')">${section}</li>`);
-            // Add Other explicitly
-            html += `<li onclick="resetSearch(); filterBySection('Other')">Other</li>`;
-            navList.innerHTML = html;
-        }
-
-        function updateNavActive(name) {
-            document.querySelectorAll('.nav-menu li').forEach(item => {
-                if(item.innerText === name) item.classList.add('active'); else item.classList.remove('active');
-            });
-        }
-
-        function renderAllSections() {
-            updateNavActive('Home');
-            document.getElementById('hero').classList.remove('hidden');
-            contentDiv.classList.remove('section-grid');
-            contentDiv.classList.add('section-home');
-            contentDiv.innerHTML = '';
-
-            renderRow("My Favorites", allChannels.filter(c => favoriteNames.includes(c.name)), true);
-            
-            TARGET_SECTIONS.forEach(section => {
-                const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
-                if(sectionChannels.length > 0) renderRow(section, sectionChannels);
-            });
-
-            // Filter "Other" (anything not in target sections)
-            const otherChannels = allChannels.filter(c => {
-                const isTargeted = TARGET_SECTIONS.some(section => 
-                    c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
-                );
-                return !isTargeted;
-            });
-            if(otherChannels.length > 0) renderRow("Other", otherChannels);
-        }
-
-        function filterBySection(sectionName) {
-            updateNavActive(sectionName);
-            document.getElementById('hero').classList.add('hidden');
-            contentDiv.classList.remove('section-home');
-            contentDiv.classList.add('section-grid');
-
-            let sectionChannels = [];
-
-            if (sectionName === 'Other') {
-                sectionChannels = allChannels.filter(c => {
-                    const isTargeted = TARGET_SECTIONS.some(section => 
-                        c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
-                    );
-                    return !isTargeted;
-                });
-            } else {
-                sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
-            }
-
-            if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
-            else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
-        }
-
-        function renderFavorites() {
-            updateNavActive('My List');
-            document.getElementById('hero').classList.add('hidden');
-            contentDiv.classList.remove('section-home');
-            contentDiv.classList.add('section-grid');
-            const favs = allChannels.filter(c => favoriteNames.includes(c.name));
-            if(favs.length > 0) renderGrid("My Favorites", favs);
-            else contentDiv.innerHTML = `<div class="section-title">My Favorites</div><div style="padding:20px">No favorites yet.</div>`;
-        }
-
-        function handleSearch(query) {
-            if(!query) { renderAllSections(); return; }
-            document.querySelectorAll('.nav-menu li').forEach(item => item.classList.remove('active'));
-            document.getElementById('hero').classList.add('hidden');
-            contentDiv.classList.remove('section-home');
-            contentDiv.classList.add('section-grid');
-            const lowerQ = query.toLowerCase();
-            const results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
-            if(results.length > 0) renderGrid(`Search: "${query}"`, results);
-            else contentDiv.innerHTML = `<div class="section-title">Search</div><div style="padding:20px">No results.</div>`;
-        }
-
-        function renderRow(title, channels, isFavRow = false) {
-            if(channels.length === 0 && !isFavRow) return;
-            if(channels.length === 0 && isFavRow) return;
-            const rowId = 'row-' + title.replace(/[^a-zA-Z0-9]/g, '-');
-            const cards = channels.map(c => createCardHtml(c)).join('');
-            const html = `
-                <div class="section-title">${isFavRow ? '<i class="fas fa-heart" style="color:red"></i> ' : ''}${title}</div>
-                <div class="row-container">
-                    <button class="scroll-btn left" onclick="scrollRow('${rowId}', -1)"><i class="fas fa-chevron-left"></i></button>
-                    <div class="row" id="${rowId}">${cards}</div>
-                    <button class="scroll-btn right" onclick="scrollRow('${rowId}', 1)"><i class="fas fa-chevron-right"></i></button>
-                </div>`;
-            contentDiv.insertAdjacentHTML('beforeend', html);
-        }
-
-        function renderGrid(title, channels) {
-            const cards = channels.map(c => createCardHtml(c)).join('');
-            const html = `<div class="section-title">${title}</div><div class="grid-container">${cards}</div>`;
-            contentDiv.innerHTML = html;
-        }
-
-        function createCardHtml(channel) {
-            const fallbackImg = `https://placehold.co/240x135/222/FFF?text=${encodeURIComponent(channel.name.substring(0,10))}`;
-            const logoSrc = channel.logo && channel.logo.length > 5 ? channel.logo : fallbackImg;
-            const isFav = favoriteNames.includes(channel.name);
-            return `
-            <div class="card" onclick='openPlayer(${JSON.stringify(channel).replace(/'/g, "&#39;")})'>
-                <img src="${logoSrc}" onerror="this.src='${fallbackImg}'" alt="${channel.name}">
-                <div class="card-info">
-                    <div class="card-actions">
-                        <div class="action-btn" style="${isFav ? 'background:white; color:red;' : ''}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></div>
-                        <div class="action-btn"><i class="fas fa-play"></i></div>
-                    </div>
-                    <div><span class="badge-live">LIVE</span><span class="channel-name">${channel.name}</span></div>
-                </div>
-            </div>`;
-        }
-
-        function resetSearch() { document.getElementById('searchInput').value = ''; }
-        function scrollRow(rowId, d) { const r = document.getElementById(rowId); if(r) r.scrollBy({ left: d * 500, behavior: 'smooth' }); }
-
-        // --- UTILS ---
+        // --- 8. UTILS ---
         function blacklistChannel(channel, refreshUI = true) {
             if(!blacklistedUrls.includes(channel.url)) {
                 blacklistedUrls.push(channel.url);
                 localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
             }
+            // remove from favs
             const favIndex = favoriteNames.indexOf(channel.name);
             if (favIndex > -1) { favoriteNames.splice(favIndex, 1); localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames)); }
+            // remove from custom
+            customSections.forEach(sec => {
+                sec.channels = sec.channels.filter(c => c !== channel.name);
+            });
+            localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
+
             allChannels = allChannels.filter(c => c.url !== channel.url);
             if(refreshUI) {
-                const active = document.querySelector('.nav-menu li.active');
-                if(active && active.innerText === 'Home') renderAllSections();
-                else if(active && active.innerText === 'My List') renderFavorites();
-                else if(active) filterBySection(active.innerText);
+                const active = document.getElementById('currentSectionLabel').innerText;
+                if(active === 'Home') renderAllSections();
+                else if(active === 'My Favorites') renderFavorites();
+                else {
+                    const customSec = customSections.find(s => s.name === active);
+                    if(customSec) filterByCustomSection(customSec.id);
+                    else filterBySection(active);
+                }
             }
         }
 
         function removeCurrentChannel(confirmAction) {
-            if(confirmAction && !confirm("Remove this channel?")) return;
+            if(confirmAction && !confirm("Permanently remove this channel?")) return;
             blacklistChannel(currentChannel, true); closePlayer();
         }
         
@@ -605,9 +847,11 @@
             if (index === -1) favoriteNames.push(currentChannel.name); else favoriteNames.splice(index, 1);
             localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames));
             updateFavButtonState();
-            const active = document.querySelector('.nav-menu li.active');
-            if(active && active.innerText === 'My List') renderFavorites();
-            if(active && active.innerText === 'Home') renderAllSections();
+            
+            // Refresh UI if in favorites view
+            const active = document.getElementById('currentSectionLabel').innerText;
+            if(active === 'My Favorites') renderFavorites();
+            if(active === 'Home') renderAllSections();
         }
 
         function updateFavButtonState() {
@@ -634,7 +878,7 @@
         });
         
         window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50));
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayer(); if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePlayer(); closeCollectionModal(); } if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
 
         // Start connection to parser
         connectToProvider();
