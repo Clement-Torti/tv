@@ -122,11 +122,11 @@
 
         .row-container { position: relative; width: 100%; }
         
-        /* UPDATED ROW: Added vertical padding to prevent clipping on hover */
+        /* UPDATED ROW: Padding prevents hover clipping */
         .row {
             display: flex; overflow-x: auto; gap: 8px; 
-            padding: 40px 4% 40px 4%; /* Top/Bottom padding allows scale(1.3) space */
-            margin-top: -30px; margin-bottom: -20px; /* Negate margin to keep visual spacing tight */
+            padding: 40px 4% 40px 4%; 
+            margin-top: -30px; margin-bottom: -20px; 
             scrollbar-width: none; scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
         }
@@ -142,14 +142,13 @@
             flex: 0 0 auto; width: 230px; height: 130px; 
             background: #222; border-radius: 4px;
             position: relative; cursor: pointer; 
-            /* UPDATED: Faster transition, removed delay */
+            /* Snappy transition */
             transition: transform 0.2s ease-in-out; 
             overflow: hidden;
         }
         .grid-container .card { width: 100%; height: auto; aspect-ratio: 16/9; }
         
         @media(hover: hover) {
-            /* UPDATED: No delay, proper z-index */
             .card:hover { 
                 transform: scale(1.3); 
                 z-index: 100; 
@@ -196,10 +195,10 @@
             .section-home { margin-top: -80px; }
             .sk-card { width: 160px; height: 90px; }
             .sk-title { width: 70%; height: 40px; }
-            .row { padding: 0 4% 30px 4%; margin-top: 0; margin-bottom: 0; } /* Reset padding for touch devices */
+            .row { padding: 0 4% 30px 4%; margin-top: 0; margin-bottom: 0; } 
         }
 
-        /* --- Modal/Player CSS (Unchanged) --- */
+        /* --- Modal/Player CSS --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 4000; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #181818; width: 400px; max-width: 90%; padding: 20px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
@@ -613,12 +612,10 @@
 
         // --- BEAUTIFUL GRADIENT GENERATOR ---
         function getGradient(str) {
-            // Simple hash
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 hash = str.charCodeAt(i) + ((hash << 5) - hash);
             }
-            // Palettes: Deep Red, Dark Blue, Dark Purple, Charcoal
             const palettes = [
                 "linear-gradient(135deg, #8E0E00 0%, #1F1C18 100%)", 
                 "linear-gradient(135deg, #000428 0%, #004e92 100%)",
@@ -632,20 +629,18 @@
         }
 
         function createCardHtml(channel) {
-            // Determine if we have a potential logo or need fallback immediately
             const hasLogo = channel.logo && channel.logo.length > 5;
             const isFav = favoriteNames.includes(channel.name);
             const channelStr = JSON.stringify(channel).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             const gradientBg = getGradient(channel.name);
             
-            // Logic:
-            // 1. Container background is set to gradient.
-            // 2. Img is on top. If img loads, it covers gradient. If error, img is hidden, revealing gradient.
-            // 3. Title is behind image, but visible if gradient is visible.
+            // Only render the fallback title div if NO logo is provided.
+            // If a logo is provided, we render the img tag.
+            // If that img tag fails (onerror), the user gets the colored gradient background (clean).
             
             return `
             <div class="card" onclick='openPlayer(${channelStr})' style="background: ${gradientBg}">
-                <div class="card-fallback-title">${channel.name}</div>
+                ${!hasLogo ? `<div class="card-fallback-title">${channel.name}</div>` : ''}
                 ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" alt="${channel.name}">` : ''}
                 <div class="card-info">
                     <div class="card-actions">
