@@ -7,7 +7,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* --- Keep previous CSS exactly as is --- */
         :root {
             --primary: #e50914;
             --dark: #141414;
@@ -215,7 +214,7 @@
             border-radius: 4px; z-index: 5000; font-weight: bold; display: none;
         }
 
-        /* Hide the "Scraper" Iframe */
+        /* Hidden Provider Iframe */
         #provider-frame { display: none; width: 0; height: 0; border: 0; }
     </style>
 </head>
@@ -259,7 +258,7 @@
 
     <div id="app-content" class="section section-home"></div>
 
-    <!-- The Iframe "Bridge" to the Public Directory -->
+    <!-- Iframe Bridge to Parser -->
     <iframe id="provider-frame"></iframe>
 
     <!-- Player Modal -->
@@ -294,10 +293,7 @@
 
     <script>
         // --- CONFIGURATION ---
-        // IMPORTANT: Set this to where you host the provider.html
-        // Use './provider.html' if they are in the same folder.
         const PROVIDER_URL = 'https://clement-torti.github.io/scrapper/'; 
-        
         const TARGET_SECTIONS = ['News', 'Kids', 'Movies', 'Music', 'Series', 'Sports', 'Documentary'];
 
         // --- STATE ---
@@ -318,11 +314,8 @@
             const frame = document.getElementById('provider-frame');
             frame.src = PROVIDER_URL;
 
-            // Listen for the "Handshake" from the provider
             window.addEventListener('message', (event) => {
-                // Security check: In production, check event.origin here!
                 if (event.data.type === 'CHANNELS_LOADED') {
-                    console.log("Received data from Provider");
                     loadData(event.data.data);
                 }
             });
@@ -344,7 +337,7 @@
             startBackgroundLinkChecker();
         }
 
-        // --- 2. BACKGROUND LINK CHECKER (Same as before) ---
+        // --- 2. BACKGROUND LINK CHECKER ---
         function startBackgroundLinkChecker() {
             const queue = allChannels.filter(c => !blacklistedUrls.includes(c.url) && !testedUrls.has(c.url));
             if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
@@ -377,10 +370,11 @@
             setTimeout(() => finish(false), 6000);
         }
 
-        // --- 3. HERO LOGIC (Same) ---
+        // --- 3. HERO LOGIC ---
         function initHero() {
             const candidates = allChannels.filter(c => c.groups.some(g => g.includes('Sport') || g.includes('Movie')));
             if(candidates.length > 0) playHeroRandom(candidates);
+            else if (allChannels.length > 0) playHeroRandom(allChannels);
         }
 
         function playHeroRandom(pool) {
@@ -410,11 +404,10 @@
         function playHeroChannel() { if(heroChannel) openPlayer(heroChannel); }
         function playRandom() { if(allChannels.length > 0) openPlayer(allChannels[Math.floor(Math.random() * allChannels.length)]); }
 
-        // --- 4. MAIN PLAYER (Same) ---
+        // --- 4. MAIN PLAYER ---
         function openPlayer(channel) {
             currentChannel = channel;
             document.getElementById('playerTitle').innerText = channel.name;
-            // Ensure background is muted when modal opens
             const heroVid = document.getElementById('hero-video-bg');
             heroVid.muted = true;
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
@@ -454,7 +447,7 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // --- 5. UI NAVIGATION & RENDERING (Same) ---
+        // --- 5. UI NAVIGATION & RENDERING ---
         const contentDiv = document.getElementById('app-content');
         const navList = document.getElementById('nav-list');
 
@@ -462,6 +455,8 @@
             let html = `<li onclick="resetSearch(); renderAllSections()" class="active">Home</li>`;
             html += `<li onclick="resetSearch(); renderFavorites()">My List</li>`;
             TARGET_SECTIONS.forEach(section => html += `<li onclick="resetSearch(); filterBySection('${section}')">${section}</li>`);
+            // Add Other explicitly
+            html += `<li onclick="resetSearch(); filterBySection('Other')">Other</li>`;
             navList.innerHTML = html;
         }
 
@@ -477,11 +472,22 @@
             contentDiv.classList.remove('section-grid');
             contentDiv.classList.add('section-home');
             contentDiv.innerHTML = '';
+
             renderRow("My Favorites", allChannels.filter(c => favoriteNames.includes(c.name)), true);
+            
             TARGET_SECTIONS.forEach(section => {
                 const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
                 if(sectionChannels.length > 0) renderRow(section, sectionChannels);
             });
+
+            // Filter "Other" (anything not in target sections)
+            const otherChannels = allChannels.filter(c => {
+                const isTargeted = TARGET_SECTIONS.some(section => 
+                    c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
+                );
+                return !isTargeted;
+            });
+            if(otherChannels.length > 0) renderRow("Other", otherChannels);
         }
 
         function filterBySection(sectionName) {
@@ -489,7 +495,20 @@
             document.getElementById('hero').classList.add('hidden');
             contentDiv.classList.remove('section-home');
             contentDiv.classList.add('section-grid');
-            const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
+
+            let sectionChannels = [];
+
+            if (sectionName === 'Other') {
+                sectionChannels = allChannels.filter(c => {
+                    const isTargeted = TARGET_SECTIONS.some(section => 
+                        c.groups.some(g => g.toLowerCase().includes(section.toLowerCase()))
+                    );
+                    return !isTargeted;
+                });
+            } else {
+                sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
+            }
+
             if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
             else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
         }
@@ -616,7 +635,7 @@
         window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50));
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayer(); if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
 
-        // Start the connection
+        // Start connection to parser
         connectToProvider();
     </script>
 </body>
