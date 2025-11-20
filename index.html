@@ -122,7 +122,6 @@
 
         .row-container { position: relative; width: 100%; }
         
-        /* UPDATED ROW: Padding prevents hover clipping */
         .row {
             display: flex; overflow-x: auto; gap: 8px; 
             padding: 40px 4% 40px 4%; 
@@ -142,7 +141,6 @@
             flex: 0 0 auto; width: 230px; height: 130px; 
             background: #222; border-radius: 4px;
             position: relative; cursor: pointer; 
-            /* Snappy transition */
             transition: transform 0.2s ease-in-out; 
             overflow: hidden;
         }
@@ -162,7 +160,6 @@
 
         .card img { width: 100%; height: 100%; object-fit: cover; background: transparent; position: relative; z-index: 1; }
         
-        /* Fallback Title (Behind Image) */
         .card-fallback-title {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 90%; text-align: center;
@@ -229,8 +226,7 @@
         .speed-display { font-weight: bold; font-size: 0.9rem; width: 45px; text-align: center; }
         @media(hover: hover) { .control-btn::after { content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); background: white; color: black; font-size: 0.8rem; padding: 4px 8px; border-radius: 3px; opacity: 0; pointer-events: none; transition: 0.2s; white-space: nowrap; font-weight: bold; } .control-btn:hover::after { opacity: 1; } }
         .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.9); color: white; padding: 10px 20px; border-radius: 4px; z-index: 5000; font-weight: bold; display: none; width: max-content; max-width: 90%; text-align: center; }
-        #provider-frame { display: none; width: 0; height: 0; border: 0; }
-
+        
         /* Mobile Media Queries */
         @media (max-width: 880px) { .primary-navigation .nav-tab:not(#tv-nav-item):not(.always-visible) { display: none; } }
         @media (max-width: 768px) {
@@ -257,7 +253,7 @@
     <nav id="navbar">
         <div class="nav-left">
             <div class="logo" onclick="window.location.href='https://www.netflix.com/browse'">
-                <img src="netflix.png" alt="Netflix" class="logo-img">
+                <img src="netflix.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg'" alt="Netflix" class="logo-img">
             </div>
             
             <ul class="primary-navigation">
@@ -335,7 +331,7 @@
         <div class="hero-content">
             <div class="hero-label">TELEVISION</div>
             <h1 class="hero-title" id="hero-title">Loading...</h1>
-            <p class="hero-desc" id="hero-desc">Experience the best live TV. Curated channels, instant access.</p>
+            <p class="hero-desc" id="hero-desc">Experience the best live TV. Curated channels, instant access from around the globe.</p>
             <div class="hero-buttons">
                 <button class="btn btn-play" onclick="playHeroChannel()"><i class="fas fa-play"></i> Play</button>
                 <button class="btn btn-info" onclick="playRandom()"><i class="fas fa-random"></i> Random</button>
@@ -349,8 +345,6 @@
     <div id="toast" class="toast">Notification</div>
 
     <div id="app-content" class="section section-home"></div>
-
-    <iframe id="provider-frame"></iframe>
 
     <!-- Collections Modal -->
     <div class="modal-overlay" id="collectionModal" onclick="closeCollectionModal(event)">
@@ -406,19 +400,16 @@
 
     <script>
         // --- CONFIGURATION ---
-        const PROVIDER_URL = 'https://clement-torti.github.io/scrapper/'; 
+        const REPO_URL = 'https://iptv-org.github.io/iptv/index.m3u';
         const STANDARD_SECTIONS = ['News', 'Kids', 'Movies', 'Music', 'Series', 'Sports', 'Documentary'];
 
         // --- STATE ---
         let allChannels = [];
+        // Using same storage keys to maintain compatibility with user expectations
         let favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
         let customSections = JSON.parse(localStorage.getItem('clement_custom_sections')) || [];
-        
         let blacklistedUrls = JSON.parse(localStorage.getItem('clement_blacklist')) || [];
-        let testedUrls = new Set(JSON.parse(localStorage.getItem('clement_tested_cache')) || []);
         
-        let totalChannelsToCheck = 0;
-        let processedChannelsCount = 0;
         let currentChannel = null;
         let playerHls = null;
         let heroHls = null;
@@ -445,30 +436,88 @@
             }
         });
 
-        // --- 1. BRIDGE TO PROVIDER ---
-        function connectToProvider() {
-            const frame = document.getElementById('provider-frame');
-            frame.src = PROVIDER_URL;
+        // --- 1. DATA FETCHING (From IPTV-ORG) ---
+        window.onload = function() {
+            fetchRepository();
+        };
 
-            window.addEventListener('message', (event) => {
-                if (event.data.type === 'CHANNELS_LOADED') {
-                    loadData(event.data.data);
+        async function fetchRepository() {
+            try {
+                // Show progress on the top bar
+                updateProgressBar(30);
+                const response = await fetch(REPO_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                updateProgressBar(60);
+                const text = await response.text();
+                
+                updateProgressBar(80);
+                parseM3U(text);
+            } catch (error) {
+                console.error('Error fetching repository:', error);
+                document.getElementById('skeleton-loader').innerHTML = "<div style='text-align:center; padding-top:200px; color:white;'>Failed to load channels.<br>Check internet connection.</div>";
+            }
+        }
+
+        function parseM3U(data) {
+            const lines = data.split('\n');
+            let parsedChannels = [];
+            let currentItem = {};
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('#EXTINF:')) {
+                    const info = line.substring(8);
+                    // Extract info parts
+                    const parts = info.split(',');
+                    const name = parts[parts.length - 1].trim();
+
+                    let logo = "";
+                    const logoMatch = line.match(/tvg-logo="([^"]*)"/);
+                    if (logoMatch) logo = logoMatch[1];
+
+                    let group = "Other";
+                    const groupMatch = line.match(/group-title="([^"]*)"/);
+                    if (groupMatch) group = groupMatch[1];
+
+                    currentItem = {
+                        name: name,
+                        logo: logo,
+                        groups: [group], // Keep as array to match V1 structure
+                        url: ""
+                    };
+                } else if (line.startsWith('http')) {
+                    currentItem.url = line;
+                    if (currentItem.name && !blacklistedUrls.includes(line)) {
+                        parsedChannels.push({...currentItem});
+                    }
+                    currentItem = {};
                 }
-            });
+            }
+            
+            updateProgressBar(100);
+            setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 1000);
+            
+            loadData(parsedChannels);
+        }
+
+        function updateProgressBar(percentage) { 
+            document.getElementById('progress-bar').style.width = percentage + '%'; 
         }
 
         function loadData(channels) {
             const skeleton = document.getElementById('skeleton-loader');
-            allChannels = channels.filter(c => !blacklistedUrls.includes(c.url));
+            allChannels = channels;
+            
             if(allChannels.length === 0) {
                 skeleton.innerHTML = "<div style='text-align:center; padding-top:200px;'>Provider returned 0 channels.</div>";
                 return;
             }
+            
             skeleton.style.display = 'none';
             updateDropdownMenu();
             renderAllSections(); 
             initHero(); 
-            startBackgroundLinkChecker();
         }
 
         // --- 2. NAVIGATION DROPDOWN ---
@@ -513,7 +562,7 @@
             contentDiv.innerHTML = '';
 
             const favs = allChannels.filter(c => favoriteNames.includes(c.name));
-            renderRow("My Favorites", favs, true);
+            if (favs.length > 0) renderRow("My Favorites", favs, true);
 
             customSections.forEach(sec => {
                 const secChannels = allChannels.filter(c => sec.channels.includes(c.name));
@@ -521,15 +570,22 @@
             });
 
             STANDARD_SECTIONS.forEach(section => {
-                const sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
+                // Filter by group-title loosely
+                const sectionChannels = allChannels.filter(c => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                 if(sectionChannels.length > 0) renderRow(section, sectionChannels);
             });
 
+            // "Other" for Home view (Random selection of remaining to prevent DOM overload)
             const otherChannels = allChannels.filter(c => {
-                const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
+                const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                 return !isTargeted;
             });
-            if(otherChannels.length > 0) renderRow("Other", otherChannels);
+            
+            if(otherChannels.length > 0) {
+                // Limit "Other" on home screen to 50 random channels to keep page light
+                const subset = otherChannels.sort(() => 0.5 - Math.random()).slice(0, 50);
+                renderRow("Discover", subset);
+            }
         }
 
         function filterByCustomSection(id) {
@@ -554,11 +610,13 @@
             let sectionChannels = [];
             if (sectionName === 'Other') {
                 sectionChannels = allChannels.filter(c => {
-                    const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g.toLowerCase().includes(section.toLowerCase())));
+                    const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                     return !isTargeted;
                 });
+                // Limit display for performance if list is huge
+                if (sectionChannels.length > 500) sectionChannels = sectionChannels.slice(0, 500);
             } else {
-                sectionChannels = allChannels.filter(c => c.groups.some(g => g.toLowerCase().includes(sectionName.toLowerCase())));
+                sectionChannels = allChannels.filter(c => c.groups.some(g => g && g.toLowerCase().includes(sectionName.toLowerCase())));
             }
             if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);
             else contentDiv.innerHTML = `<div class="section-title">${sectionName}</div><div style="padding:20px">No channels found.</div>`;
@@ -584,7 +642,13 @@
             contentDiv.classList.remove('section-home');
             contentDiv.classList.add('section-grid');
             const lowerQ = query.toLowerCase();
-            const results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
+            
+            // Search filter
+            let results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
+            
+            // Limit results for performance
+            if(results.length > 200) results = results.slice(0, 200);
+
             if(results.length > 0) renderGrid(`Results: "${query}"`, results);
             else contentDiv.innerHTML = `<div class="section-title">Search</div><div style="padding:20px">No results.</div>`;
         }
@@ -634,14 +698,10 @@
             const channelStr = JSON.stringify(channel).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             const gradientBg = getGradient(channel.name);
             
-            // Only render the fallback title div if NO logo is provided.
-            // If a logo is provided, we render the img tag.
-            // If that img tag fails (onerror), the user gets the colored gradient background (clean).
-            
             return `
             <div class="card" onclick='openPlayer(${channelStr})' style="background: ${gradientBg}">
                 ${!hasLogo ? `<div class="card-fallback-title">${channel.name}</div>` : ''}
-                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" alt="${channel.name}">` : ''}
+                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" loading="lazy" alt="${channel.name}">` : ''}
                 <div class="card-info">
                     <div class="card-actions">
                         <div class="action-btn" onclick="event.stopPropagation(); openCollectionModal(${channelStr})"><i class="fas fa-list"></i></div>
@@ -736,41 +796,10 @@
             localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
         }
 
-        // --- 6. BACKGROUND CHECKS & HERO ---
-        function startBackgroundLinkChecker() {
-            const queue = allChannels.filter(c => !blacklistedUrls.includes(c.url) && !testedUrls.has(c.url));
-            if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
-            totalChannelsToCheck = queue.length;
-            processedChannelsCount = 0;
-            processQueue(queue);
-        }
-        function processQueue(queue) {
-            if (queue.length === 0) { updateProgressBar(100); setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 2000); return; }
-            const candidate = queue.shift();
-            if (blacklistedUrls.includes(candidate.url)) { processedChannelsCount++; updateProgressBar((processedChannelsCount / totalChannelsToCheck) * 100); processQueue(queue); return; }
-            checkChannelConnectivity(candidate, (isWorking) => {
-                testedUrls.add(candidate.url);
-                localStorage.setItem('clement_tested_cache', JSON.stringify([...testedUrls]));
-                processedChannelsCount++;
-                updateProgressBar((processedChannelsCount / totalChannelsToCheck) * 100);
-                if (!isWorking) blacklistChannel(candidate, false);
-                setTimeout(() => processQueue(queue), 1000);
-            });
-        }
-        function updateProgressBar(percentage) { document.getElementById('progress-bar').style.width = percentage + '%'; }
-        function checkChannelConnectivity(channel, callback) {
-            if (!Hls.isSupported()) { callback(true); return; }
-            const hlsTest = new Hls({ enableWorker: false, manifestLoadingTimeOut: 5000 });
-            let finished = false;
-            const finish = (result) => { if(!finished) { finished = true; hlsTest.destroy(); callback(result); } };
-            hlsTest.loadSource(channel.url);
-            hlsTest.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
-            hlsTest.on(Hls.Events.ERROR, (event, data) => { if (data.fatal) finish(false); });
-            setTimeout(() => finish(false), 6000);
-        }
-
+        // --- 6. HERO LOGIC ---
         function initHero() {
-            const candidates = allChannels.filter(c => c.groups.some(g => g.includes('Sport') || g.includes('Movie')));
+            // Pick channels that are Sports or Movies for the hero
+            const candidates = allChannels.filter(c => c.groups.some(g => g && (g.includes('Sport') || g.includes('Movie'))));
             if(candidates.length > 0) playHeroRandom(candidates);
             else if (allChannels.length > 0) playHeroRandom(allChannels);
         }
@@ -782,12 +811,18 @@
             const video = document.getElementById('hero-video-bg');
             video.muted = true; 
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+            
             if (Hls.isSupported()) {
                 heroHls = new Hls({ enableWorker: true, lowLatencyMode: true });
                 heroHls.loadSource(heroChannel.url);
                 heroHls.attachMedia(video);
                 heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
-                heroHls.on(Hls.Events.ERROR, (e, data) => { if(data.fatal) setTimeout(() => playHeroRandom(pool), 1000); });
+                heroHls.on(Hls.Events.ERROR, (e, data) => { 
+                    if(data.fatal) {
+                        // If hero channel fails, try another one after delay
+                        setTimeout(() => playHeroRandom(pool), 1000); 
+                    }
+                });
             } else {
                  video.src = heroChannel.url;
                  video.play().catch(e => {});
@@ -807,25 +842,38 @@
         function openPlayer(channel) {
             currentChannel = channel;
             document.getElementById('playerTitle').innerText = channel.name;
+            
+            // Mute hero when opening player
             const heroVid = document.getElementById('hero-video-bg');
             heroVid.muted = true;
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+            
             const video = document.getElementById('mainVideo');
             video.playbackRate = 1.0;
             document.getElementById('speedDisplay').innerText = "1.0x";
             document.getElementById('videoModal').style.display = 'flex';
             updateFavButtonState();
+            
             if (Hls.isSupported()) {
                 if(playerHls) playerHls.destroy();
                 playerHls = new Hls({ manifestLoadingTimeOut: 5000 });
                 playerHls.loadSource(channel.url);
                 playerHls.attachMedia(video);
                 playerHls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-                playerHls.on(Hls.Events.ERROR, (event, data) => { if (data.fatal) { blacklistChannel(channel, true); closePlayer(); showToast(`Stream unavailable: ${channel.name} removed.`); } });
+                playerHls.on(Hls.Events.ERROR, (event, data) => { 
+                    if (data.fatal) { 
+                        blacklistChannel(channel, true); 
+                        closePlayer(); 
+                        showToast(`Stream unavailable: ${channel.name} removed.`); 
+                    } 
+                });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = channel.url;
                 video.addEventListener('loadedmetadata', () => video.play());
-                video.addEventListener('error', () => { blacklistChannel(channel, true); closePlayer(); });
+                video.addEventListener('error', () => { 
+                    blacklistChannel(channel, true); 
+                    closePlayer(); 
+                });
             }
         }
 
@@ -844,19 +892,27 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // --- 8. UTILS ---
+        // --- 8. UTILS & BLACKLIST ---
         function blacklistChannel(channel, refreshUI = true) {
             if(!blacklistedUrls.includes(channel.url)) {
                 blacklistedUrls.push(channel.url);
                 localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
             }
+            
+            // Remove from current memory state
             const favIndex = favoriteNames.indexOf(channel.name);
-            if (favIndex > -1) { favoriteNames.splice(favIndex, 1); localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames)); }
+            if (favIndex > -1) { 
+                favoriteNames.splice(favIndex, 1); 
+                localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames)); 
+            }
+            
             customSections.forEach(sec => {
                 sec.channels = sec.channels.filter(c => c !== channel.name);
             });
             localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
+            
             allChannels = allChannels.filter(c => c.url !== channel.url);
+            
             if(refreshUI) {
                 const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
                 if(active === 'Home') renderAllSections();
@@ -871,7 +927,8 @@
 
         function removeCurrentChannel(confirmAction) {
             if(confirmAction && !confirm("Permanently remove this channel?")) return;
-            blacklistChannel(currentChannel, true); closePlayer();
+            blacklistChannel(currentChannel, true); 
+            closePlayer();
         }
         
         function toggleFavorite() {
@@ -880,6 +937,8 @@
             if (index === -1) favoriteNames.push(currentChannel.name); else favoriteNames.splice(index, 1);
             localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames));
             updateFavButtonState();
+            
+            // Refresh UI if in Favorites view
             const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
             if(active === 'My Favorites') renderFavorites();
             if(active === 'Home') renderAllSections();
@@ -941,7 +1000,6 @@
         window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20));
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePlayer(); closeCollectionModal(); } if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
 
-        connectToProvider();
     </script>
 </body>
 </html>
