@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- FIX: This forces the browser to upgrade HTTP requests to HTTPS automatically -->
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    
     <title>Netflix | TV</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -485,16 +489,14 @@
                     if (groupMatch) group = groupMatch[1];
 
                     // --- CLEAN NAME LOGIC ---
-                    // 1. Remove stuff in brackets/parenthesis: [US], (1080p), etc.
                     let cleanName = rawName.replace(/(\s*[\(\[][^\)\]]*[\)\]])+/g, '').trim();
-                    if(!cleanName) cleanName = rawName; // Fallback if cleaning removed everything
+                    if(!cleanName) cleanName = rawName; 
 
-                    // 2. Handle duplicates (e.g. "BBC One" appearing twice due to different streams)
+                    // Handle duplicates
                     if (usedDisplayNames[cleanName]) {
                         usedDisplayNames[cleanName]++;
-                        // Append number to display name: "BBC One 2"
                         currentItem = {
-                            name: rawName, // Keep raw for ID stability
+                            name: rawName,
                             displayName: `${cleanName} ${usedDisplayNames[cleanName]}`,
                             logo: logo,
                             groups: [group],
@@ -512,8 +514,18 @@
                     }
 
                 } else if (line.startsWith('http')) {
-                    currentItem.url = line;
-                    if (currentItem.name && !blacklistedUrls.includes(line)) {
+                    // FIX: MIXED CONTENT
+                    // 1. We attempt to rewrite http:// to https://
+                    // 2. The meta tag in <head> will attempt to handle the rest.
+                    // 3. If the server does not support HTTPS, the player error handler will blacklist it.
+                    let finalUrl = line;
+                    if (line.startsWith('http://')) {
+                         finalUrl = line.replace('http://', 'https://');
+                    }
+
+                    currentItem.url = finalUrl;
+                    
+                    if (currentItem.name && !blacklistedUrls.includes(finalUrl) && !blacklistedUrls.includes(line)) {
                         parsedChannels.push({...currentItem});
                     }
                     currentItem = {};
@@ -677,7 +689,7 @@
             contentDiv.classList.add('section-grid');
             const lowerQ = query.toLowerCase();
             
-            // Search filter: Check both raw name and clean display name
+            // Search filter
             let results = allChannels.filter(c => 
                 c.name.toLowerCase().includes(lowerQ) || 
                 c.displayName.toLowerCase().includes(lowerQ)
@@ -847,6 +859,8 @@
 
         function playHeroRandom(pool) {
             if(heroHls) heroHls.destroy();
+            // Simple fallback: If first random fails, we might just have a blank hero.
+            // Real fix is in the playerHls error handler for the main player.
             heroChannel = pool[Math.floor(Math.random() * pool.length)];
             document.getElementById('hero-title').innerText = heroChannel.displayName;
             const video = document.getElementById('hero-video-bg');
@@ -860,7 +874,10 @@
                 heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
                 heroHls.on(Hls.Events.ERROR, (e, data) => { 
                     if(data.fatal) {
-                        setTimeout(() => playHeroRandom(pool), 1000); 
+                        // If hero fails due to HTTPS/Mixed Content, try another
+                        setTimeout(() => {
+                            if(pool.length > 1) playHeroRandom(pool);
+                        }, 1000); 
                     }
                 });
             } else {
@@ -895,15 +912,22 @@
             
             if (Hls.isSupported()) {
                 if(playerHls) playerHls.destroy();
-                playerHls = new Hls({ manifestLoadingTimeOut: 5000 });
+                playerHls = new Hls({ 
+                    manifestLoadingTimeOut: 5000,
+                    fragLoadingTimeOut: 5000 
+                });
+                
                 playerHls.loadSource(channel.url);
                 playerHls.attachMedia(video);
                 playerHls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                
+                // ENHANCED ERROR HANDLING
                 playerHls.on(Hls.Events.ERROR, (event, data) => { 
                     if (data.fatal) { 
+                        console.log("Stream error:", data);
                         blacklistChannel(channel, true); 
                         closePlayer(); 
-                        showToast(`Stream unavailable: ${channel.displayName} removed.`); 
+                        showToast(`Stream unavailable (Security/Offline): ${channel.displayName} removed.`); 
                     } 
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -935,6 +959,10 @@
         function blacklistChannel(channel, refreshUI = true) {
             if(!blacklistedUrls.includes(channel.url)) {
                 blacklistedUrls.push(channel.url);
+                // Also blacklist the original http version if we upgraded it
+                if(channel.url.startsWith('https')) {
+                     blacklistedUrls.push(channel.url.replace('https', 'http'));
+                }
                 localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
             }
             
