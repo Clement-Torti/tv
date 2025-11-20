@@ -257,7 +257,7 @@
             </div>
             
             <ul class="primary-navigation">
-                <li class="nav-tab"><a href="https://www.netflix.com/browse">Inicio</a></li>
+                <li class="nav-tab"><a href="https://clement-torti.github.io/tv/">Inicio</a></li>
                 <li class="nav-tab"><a href="https://www.netflix.com/browse/genre/83">Series</a></li>
                 <li class="nav-tab"><a href="https://www.netflix.com/browse/genre/34399">Películas</a></li>
                 <li class="nav-tab"><a href="#">Juegos</a></li>
@@ -405,10 +405,13 @@
 
         // --- STATE ---
         let allChannels = [];
-        // Using same storage keys to maintain compatibility with user expectations
         let favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
         let customSections = JSON.parse(localStorage.getItem('clement_custom_sections')) || [];
         let blacklistedUrls = JSON.parse(localStorage.getItem('clement_blacklist')) || [];
+        
+        // View State for Navigation Logic
+        let currentView = 'home'; // home, category, search, custom, favorites
+        let currentSearchQuery = '';
         
         let currentChannel = null;
         let playerHls = null;
@@ -443,7 +446,6 @@
 
         async function fetchRepository() {
             try {
-                // Show progress on the top bar
                 updateProgressBar(30);
                 const response = await fetch(REPO_URL);
                 if (!response.ok) throw new Error('Network response was not ok');
@@ -464,13 +466,15 @@
             let parsedChannels = [];
             let currentItem = {};
             
+            // Deduplication helpers for cleaning
+            const usedDisplayNames = {};
+            
             for (let line of lines) {
                 line = line.trim();
                 if (line.startsWith('#EXTINF:')) {
                     const info = line.substring(8);
-                    // Extract info parts
                     const parts = info.split(',');
-                    const name = parts[parts.length - 1]
+                    const rawName = parts[parts.length - 1].trim();
 
                     let logo = "";
                     const logoMatch = line.match(/tvg-logo="([^"]*)"/);
@@ -480,12 +484,33 @@
                     const groupMatch = line.match(/group-title="([^"]*)"/);
                     if (groupMatch) group = groupMatch[1];
 
-                    currentItem = {
-                        name: name,
-                        logo: logo,
-                        groups: [group], // Keep as array to match V1 structure
-                        url: ""
-                    };
+                    // --- CLEAN NAME LOGIC ---
+                    // 1. Remove stuff in brackets/parenthesis: [US], (1080p), etc.
+                    let cleanName = rawName.replace(/(\s*[\(\[][^\)\]]*[\)\]])+/g, '').trim();
+                    if(!cleanName) cleanName = rawName; // Fallback if cleaning removed everything
+
+                    // 2. Handle duplicates (e.g. "BBC One" appearing twice due to different streams)
+                    if (usedDisplayNames[cleanName]) {
+                        usedDisplayNames[cleanName]++;
+                        // Append number to display name: "BBC One 2"
+                        currentItem = {
+                            name: rawName, // Keep raw for ID stability
+                            displayName: `${cleanName} ${usedDisplayNames[cleanName]}`,
+                            logo: logo,
+                            groups: [group],
+                            url: ""
+                        };
+                    } else {
+                        usedDisplayNames[cleanName] = 1;
+                        currentItem = {
+                            name: rawName,
+                            displayName: cleanName,
+                            logo: logo,
+                            groups: [group],
+                            url: ""
+                        };
+                    }
+
                 } else if (line.startsWith('http')) {
                     currentItem.url = line;
                     if (currentItem.name && !blacklistedUrls.includes(line)) {
@@ -554,6 +579,7 @@
 
         // --- 3. SECTION LOGIC ---
         function renderAllSections() {
+            currentView = 'home';
             updateDropdownMenu('Home');
             document.getElementById('hero').classList.remove('hidden');
             const contentDiv = document.getElementById('app-content');
@@ -570,25 +596,23 @@
             });
 
             STANDARD_SECTIONS.forEach(section => {
-                // Filter by group-title loosely
                 const sectionChannels = allChannels.filter(c => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                 if(sectionChannels.length > 0) renderRow(section, sectionChannels);
             });
 
-            // "Other" for Home view (Random selection of remaining to prevent DOM overload)
             const otherChannels = allChannels.filter(c => {
                 const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                 return !isTargeted;
             });
             
             if(otherChannels.length > 0) {
-                // Limit "Other" on home screen to 50 random channels to keep page light
                 const subset = otherChannels.sort(() => 0.5 - Math.random()).slice(0, 50);
                 renderRow("Discover", subset);
             }
         }
 
         function filterByCustomSection(id) {
+            currentView = 'custom';
             const section = customSections.find(s => s.id === id);
             if(!section) return;
             updateDropdownMenu(section.name);
@@ -602,6 +626,7 @@
         }
 
         function filterBySection(sectionName) {
+            currentView = 'category';
             updateDropdownMenu(sectionName);
             document.getElementById('hero').classList.add('hidden');
             const contentDiv = document.getElementById('app-content');
@@ -613,7 +638,6 @@
                     const isTargeted = STANDARD_SECTIONS.some(section => c.groups.some(g => g && g.toLowerCase().includes(section.toLowerCase())));
                     return !isTargeted;
                 });
-                // Limit display for performance if list is huge
                 if (sectionChannels.length > 500) sectionChannels = sectionChannels.slice(0, 500);
             } else {
                 sectionChannels = allChannels.filter(c => c.groups.some(g => g && g.toLowerCase().includes(sectionName.toLowerCase())));
@@ -623,6 +647,7 @@
         }
 
         function renderFavorites() {
+            currentView = 'favorites';
             updateDropdownMenu('My Favorites');
             document.getElementById('hero').classList.add('hidden');
             const contentDiv = document.getElementById('app-content');
@@ -635,7 +660,16 @@
 
         // --- 4. RENDERING HELPERS ---
         function handleSearch(query) {
-            if(!query) { renderAllSections(); return; }
+            if(!query) { 
+                // Only reset if we were in search mode
+                if(currentView === 'search') renderAllSections(); 
+                return; 
+            }
+            
+            // Set State
+            currentView = 'search';
+            currentSearchQuery = query;
+
             updateDropdownMenu('Search');
             document.getElementById('hero').classList.add('hidden');
             const contentDiv = document.getElementById('app-content');
@@ -643,10 +677,12 @@
             contentDiv.classList.add('section-grid');
             const lowerQ = query.toLowerCase();
             
-            // Search filter
-            let results = allChannels.filter(c => c.name.toLowerCase().includes(lowerQ));
+            // Search filter: Check both raw name and clean display name
+            let results = allChannels.filter(c => 
+                c.name.toLowerCase().includes(lowerQ) || 
+                c.displayName.toLowerCase().includes(lowerQ)
+            );
             
-            // Limit results for performance
             if(results.length > 200) results = results.slice(0, 200);
 
             if(results.length > 0) renderGrid(`Results: "${query}"`, results);
@@ -674,7 +710,6 @@
             document.getElementById('app-content').innerHTML = html;
         }
 
-        // --- BEAUTIFUL GRADIENT GENERATOR ---
         function getGradient(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -694,21 +729,21 @@
 
         function createCardHtml(channel) {
             const hasLogo = channel.logo && channel.logo.length > 5;
-            const isFav = favoriteNames.includes(channel.name);
+            const isFav = favoriteNames.includes(channel.name); // Check against ID
             const channelStr = JSON.stringify(channel).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             const gradientBg = getGradient(channel.name);
             
             return `
             <div class="card" onclick='openPlayer(${channelStr})' style="background: ${gradientBg}">
-                ${!hasLogo ? `<div class="card-fallback-title">${channel.name}</div>` : ''}
-                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" loading="lazy" alt="${channel.name}">` : ''}
+                ${!hasLogo ? `<div class="card-fallback-title">${channel.displayName}</div>` : ''}
+                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" loading="lazy" alt="${channel.displayName}">` : ''}
                 <div class="card-info">
                     <div class="card-actions">
                         <div class="action-btn" onclick="event.stopPropagation(); openCollectionModal(${channelStr})"><i class="fas fa-list"></i></div>
                         <div class="action-btn" style="${isFav ? 'background:white; color:red;' : ''}"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></div>
                         <div class="action-btn"><i class="fas fa-play"></i></div>
                     </div>
-                    <div><span class="badge-live">LIVE</span><span class="channel-name">${channel.name}</span></div>
+                    <div><span class="badge-live">LIVE</span><span class="channel-name">${channel.displayName}</span></div>
                 </div>
             </div>`;
         }
@@ -716,6 +751,8 @@
         function resetSearch() { 
             document.getElementById('searchInput').value = ''; 
             document.getElementById('searchBox').classList.remove('active');
+            currentView = 'home';
+            currentSearchQuery = '';
         }
         function scrollRow(rowId, d) { const r = document.getElementById(rowId); if(r) r.scrollBy({ left: d * 300, behavior: 'smooth' }); }
 
@@ -748,7 +785,7 @@
 
         function openCollectionModal(channel) {
             targetCollectionChannel = channel;
-            document.getElementById('collectionTargetName').innerText = `Add "${channel.name}" to:`;
+            document.getElementById('collectionTargetName').innerText = `Add "${channel.displayName}" to:`;
             document.getElementById('collectionModal').style.display = 'flex';
             refreshCollectionModal();
         }
@@ -757,8 +794,12 @@
             if (e && e.target !== document.getElementById('collectionModal')) return;
             document.getElementById('collectionModal').style.display = 'none';
             targetCollectionChannel = null;
-            const activeLabel = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
-            if(activeLabel === 'Home') renderAllSections();
+            // If we are viewing a custom section, refresh it instantly
+            if(currentView === 'custom') {
+                const active = document.querySelector('.nav-item.active').innerText;
+                const section = customSections.find(s => s.name === active);
+                if(section) filterByCustomSection(section.id);
+            }
         }
 
         function refreshCollectionModal() {
@@ -768,6 +809,7 @@
                 list.innerHTML = '<div style="color:#666; padding:10px; text-align:center;">No custom sections.<br>Create one above.</div>';
             }
             customSections.forEach(sec => {
+                // Check against raw name
                 const isPresent = sec.channels.includes(targetCollectionChannel.name);
                 const item = document.createElement('div');
                 item.className = 'collection-item';
@@ -798,7 +840,6 @@
 
         // --- 6. HERO LOGIC ---
         function initHero() {
-            // Pick channels that are Sports or Movies for the hero
             const candidates = allChannels.filter(c => c.groups.some(g => g && (g.includes('Sport') || g.includes('Movie'))));
             if(candidates.length > 0) playHeroRandom(candidates);
             else if (allChannels.length > 0) playHeroRandom(allChannels);
@@ -807,7 +848,7 @@
         function playHeroRandom(pool) {
             if(heroHls) heroHls.destroy();
             heroChannel = pool[Math.floor(Math.random() * pool.length)];
-            document.getElementById('hero-title').innerText = heroChannel.name;
+            document.getElementById('hero-title').innerText = heroChannel.displayName;
             const video = document.getElementById('hero-video-bg');
             video.muted = true; 
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
@@ -819,7 +860,6 @@
                 heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
                 heroHls.on(Hls.Events.ERROR, (e, data) => { 
                     if(data.fatal) {
-                        // If hero channel fails, try another one after delay
                         setTimeout(() => playHeroRandom(pool), 1000); 
                     }
                 });
@@ -841,9 +881,8 @@
         // --- 7. PLAYER LOGIC ---
         function openPlayer(channel) {
             currentChannel = channel;
-            document.getElementById('playerTitle').innerText = channel.name;
+            document.getElementById('playerTitle').innerText = channel.displayName;
             
-            // Mute hero when opening player
             const heroVid = document.getElementById('hero-video-bg');
             heroVid.muted = true;
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
@@ -864,7 +903,7 @@
                     if (data.fatal) { 
                         blacklistChannel(channel, true); 
                         closePlayer(); 
-                        showToast(`Stream unavailable: ${channel.name} removed.`); 
+                        showToast(`Stream unavailable: ${channel.displayName} removed.`); 
                     } 
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -899,7 +938,6 @@
                 localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
             }
             
-            // Remove from current memory state
             const favIndex = favoriteNames.indexOf(channel.name);
             if (favIndex > -1) { 
                 favoriteNames.splice(favIndex, 1); 
@@ -914,13 +952,18 @@
             allChannels = allChannels.filter(c => c.url !== channel.url);
             
             if(refreshUI) {
-                const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
-                if(active === 'Home') renderAllSections();
-                else if(active === 'My Favorites') renderFavorites();
-                else {
-                    const customSec = customSections.find(s => s.name === active);
-                    if(customSec) filterByCustomSection(customSec.id);
-                    else filterBySection(active);
+                // KEY FIX: Check View State to decide where to go
+                if (currentView === 'search' && currentSearchQuery) {
+                    handleSearch(currentSearchQuery);
+                } else {
+                    const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
+                    if(active === 'Home') renderAllSections();
+                    else if(active === 'My Favorites') renderFavorites();
+                    else {
+                        const customSec = customSections.find(s => s.name === active);
+                        if(customSec) filterByCustomSection(customSec.id);
+                        else filterBySection(active);
+                    }
                 }
             }
         }
@@ -938,10 +981,8 @@
             localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames));
             updateFavButtonState();
             
-            // Refresh UI if in Favorites view
-            const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
-            if(active === 'My Favorites') renderFavorites();
-            if(active === 'Home') renderAllSections();
+            if (currentView === 'favorites') renderFavorites();
+            if (currentView === 'home') renderAllSections();
         }
 
         function updateFavButtonState() {
