@@ -471,10 +471,6 @@
                     // Extract info parts
                     const parts = info.split(',');
                     const name = parts[parts.length - 1]
-                    .replace(/\([^)]*\)|\[[^\]]*\]/g, "")  // remove (...) and [...]
-                    .replace(/\s+/g, " ")                  // fix double spaces
-                    .trim();
-
 
                     let logo = "";
                     const logoMatch = line.match(/tvg-logo="([^"]*)"/);
