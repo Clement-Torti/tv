@@ -852,10 +852,23 @@
 
         // --- 6. HERO LOGIC ---
         function initHero() {
-            const candidates = allChannels.filter(c => c.groups.some(g => g && (g.includes('Sport') || g.includes('Movie'))));
-            if(candidates.length > 0) playHeroRandom(candidates);
-            else if (allChannels.length > 0) playHeroRandom(allChannels);
+            const favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
+
+            // Build candidate list from favorites
+            const candidates = allChannels.filter(c =>
+                favoriteNames.includes(c.name)
+            );
+
+            console.log("Favorites:", favoriteNames);
+            console.log("Candidate channels:", candidates);
+
+            if (candidates.length > 0) {
+                playHeroRandom(candidates);
+            } else if (allChannels.length > 0) {
+                playHeroRandom(allChannels);
+            }
         }
+
 
         function playHeroRandom(pool) {
             if(heroHls) heroHls.destroy();
@@ -953,6 +966,7 @@
             video.pause(); video.src = "";
             if(playerHls) playerHls.destroy();
             document.getElementById('videoModal').style.display = 'none';
+            document.exitFullscreen();
         }
 
         // --- 8. UTILS & BLACKLIST ---
