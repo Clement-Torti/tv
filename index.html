@@ -919,7 +919,71 @@
         }
 
         function playHeroChannel() { if(heroChannel) openPlayer(heroChannel); }
-        function playRandom() { if(allChannels.length > 0) openPlayer(allChannels[Math.floor(Math.random() * allChannels.length)]); }
+        function playHeroRandom(pool) {
+            if(heroHls) { heroHls.destroy(); heroHls = null; }
+            
+            // 1. Seleccionar canal
+            heroChannel = pool[Math.floor(Math.random() * pool.length)];
+            document.getElementById('hero-title').innerText = heroChannel.displayName;
+            
+            const video = document.getElementById('hero-video-bg');
+            video.muted = true; 
+            document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+            
+            // 2. Preparar lógica de Proxy/HTTPS (igual que openPlayer)
+            let streamUrl = heroChannel.url;
+            let usingProxy = false;
+            let hasTriedHttpsFallback = false;
+
+            if (streamUrl.startsWith('http://')) {
+                usingProxy = true;
+                streamUrl = 'https://corsproxy.io/?' + encodeURIComponent(streamUrl);
+            }
+
+            if (Hls.isSupported()) {
+                heroHls = new Hls({ 
+                    enableWorker: true, 
+                    lowLatencyMode: true,
+                    // Fix para rutas relativas dentro del proxy
+                    xhrSetup: function (xhr, url) {
+                        if (usingProxy && url.startsWith('https://corsproxy.io/') && !url.includes('?')) {
+                            const relativePath = url.replace('https://corsproxy.io/', '');
+                            const originalBase = heroChannel.url.substring(0, heroChannel.url.lastIndexOf('/') + 1);
+                            const fixedUrl = 'https://corsproxy.io/?' + encodeURIComponent(originalBase + relativePath);
+                            xhr.open('GET', fixedUrl, true);
+                        }
+                    }
+                });
+
+                heroHls.loadSource(streamUrl);
+                heroHls.attachMedia(video);
+                heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
+                
+                heroHls.on(Hls.Events.ERROR, (e, data) => { 
+                    if(data.fatal) {
+                        // A. INTENTO 1: Si falló el Proxy, intentar forzar HTTPS directo
+                        if (usingProxy && !hasTriedHttpsFallback) {
+                            console.log("Hero Proxy failed. Retrying direct HTTPS...");
+                            hasTriedHttpsFallback = true;
+                            usingProxy = false;
+                            const secureUrl = heroChannel.url.replace('http://', 'https://');
+                            heroHls.loadSource(secureUrl);
+                            return;
+                        }
+
+                        // B. INTENTO 2: Si todo falla, buscar otro canal random
+                        heroHls.destroy();
+                        setTimeout(() => {
+                            if(pool.length > 1) playHeroRandom(pool);
+                        }, 1000); 
+                    }
+                });
+            } else {
+                 // Fallback nativo (Safari)
+                 video.src = streamUrl;
+                 video.play().catch(e => {});
+            }
+        }
 
         // --- 7. PLAYER LOGIC ---
         function openPlayer(channel) {
