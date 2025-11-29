@@ -1101,6 +1101,10 @@
             video.playbackRate = 1.0;
             document.getElementById('speedDisplay').innerText = "1.0x";
             document.getElementById('videoModal').style.display = 'flex';
+            renderPlayerCarousel(); 
+            document.getElementById('playerCarousel').classList.add('open');
+            document.getElementById('carouselToggleIcon').className = 'fas fa-chevron-down';
+
             updateFavButtonState();
             
             // Cleanup previous players
@@ -1376,7 +1380,7 @@
                     controlsTimeout = setTimeout(() => {
                         const vid = document.getElementById('mainVideo');
                         if(!vid.paused) overlay.classList.remove('show-mobile');
-                    }, 3000);
+                    }, 2000);
                 }
             }
         }
@@ -1387,7 +1391,7 @@
             const w = document.getElementById('videoWrapper');
             w.style.cursor = 'default'; document.querySelector('.player-overlay').style.opacity = '1';
             clearTimeout(mouseTimer);
-            mouseTimer = setTimeout(() => { if(!document.getElementById('mainVideo').paused) { document.querySelector('.player-overlay').style.opacity = '0'; w.style.cursor = 'none'; } }, 3000);
+            mouseTimer = setTimeout(() => { if(!document.getElementById('mainVideo').paused) { document.querySelector('.player-overlay').style.opacity = '0'; w.style.cursor = 'none'; } }, 2000);
         });
         
         window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20));
