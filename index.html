@@ -579,7 +579,7 @@
             {
                 name: "Hardcoded MBC3 arabic",
                 displayName: "MBC3 arabic",
-                logo: "",
+                logo: "./MBC_3.png",
                 groups: ["Kids"],
                 url: "https://tgn.bozztv.com/eshgtv-trn09/ga-mchannel3/index.m3u8"
             }
@@ -870,7 +870,14 @@
             return `
             <div class="card" onclick='openPlayer(${channelStr})' style="background: ${gradientBg}">
                 ${!hasLogo ? `<div class="card-fallback-title">${channel.displayName}</div>` : ''}
-                ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'" loading="lazy" alt="${channel.displayName}">` : ''}
+                ${hasLogo ? `<img 
+                src="${channel.logo}" 
+                onerror="this.style.display='none'" 
+                loading="lazy" 
+                alt="${channel.displayName}"
+                style="max-width:100%; object-fit:contain;"
+                >
+                ` : ''}
                 <div class="card-info">
                     <div class="card-actions">
                         <div class="action-btn" onclick="event.stopPropagation(); openCollectionModal(${channelStr})"><i class="fas fa-list"></i></div>
@@ -1261,7 +1268,13 @@
                 card.style.background = gradientBg;
 
                 card.innerHTML = `
-                    ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : ''}
+                    ${hasLogo ? `<img 
+                src="${channel.logo}" 
+                onerror="this.style.display='none'" 
+                loading="lazy" 
+                alt="${channel.displayName}"
+                style="max-width:100%; object-fit:contain;"
+                >` : ''}
                     <div class="carousel-card-info" style="${hasLogo ? 'display:none' : ''}">
                         <span class="carousel-name">${channel.displayName}</span>
                     </div>
