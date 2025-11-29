@@ -216,7 +216,101 @@
         .video-wrapper { width: 100%; height: 100%; position: relative; background: black; }
         video#mainVideo { width: 100%; height: 100%; object-fit: contain; }
         #ttml-rendering-div { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
-        .player-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; pointer-events: none; }
+        .player-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; pointer-events: none; }        
+        .player-carousel {
+            position: absolute;
+            bottom: 90px; /* Just above the player-bottom (adjusted for padding) */
+            left: 0;
+            width: 100%;
+            height: 0; /* Hidden by default */
+            overflow: hidden;
+            opacity: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+        }
+
+        .player-carousel.open {
+            height: 160px; /* Height of the open carousel */
+            opacity: 1;
+        }
+
+        .carousel-track {
+            display: flex;
+            gap: 15px;
+            padding: 0 4%; /* Align with site padding */
+            overflow-x: auto;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            scrollbar-width: none; /* Firefox */
+        }
+        .carousel-track::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+
+        /* Carousel Card Style */
+        .carousel-card {
+            flex: 0 0 180px; /* Fixed width */
+            height: 100px;
+            background: #222;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .carousel-card:hover {
+            transform: scale(1.05);
+            border-color: rgba(255,255,255,0.5);
+            z-index: 5;
+        }
+
+        .carousel-card.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(229, 9, 20, 0.5);
+        }
+
+        .carousel-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .carousel-card:hover img, .carousel-card.active img {
+            opacity: 0.3;
+        }
+
+        .carousel-card-info {
+            position: absolute;
+            bottom: 0; left: 0; right: 0; top: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 10px;
+            text-shadow: 0 2px 4px black;
+        }
+
+        .carousel-name {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: white;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Mobile Adjustment */
+        @media (max-width: 768px) {
+            .player-carousel.open { height: 120px; }
+            .carousel-card { flex: 0 0 140px; height: 80px; }
+            .carousel-name { font-size: 0.8rem; }
+        }
         .video-wrapper:hover .player-overlay, .player-overlay.show-mobile { opacity: 1; pointer-events: auto; }
         .player-top { display: flex; justify-content: space-between; align-items: center; margin-top: 10px;}
         .back-btn { font-size: 2rem; cursor: pointer; padding: 10px; }
@@ -387,6 +481,11 @@
                 <div class="player-center">
                     <div class="big-play-btn" onclick="event.stopPropagation(); togglePlay()"><i class="fas fa-pause" id="centerPlayIcon"></i></div>
                 </div>
+                <div id="playerCarousel" class="player-carousel" onclick="event.stopPropagation()">
+                    <div class="carousel-track" id="playerCarouselList">
+                        <!-- JS populates this -->
+                    </div>
+                </div>
                 <div class="player-bottom" onclick="event.stopPropagation()">
                     <div class="player-controls-left">
                         <button class="control-btn" onclick="togglePlay()" data-tooltip="Play/Pause"><i class="fas fa-pause" id="bottomPlayIcon"></i></button>
@@ -398,6 +497,10 @@
                         </div>
                     </div>
                     <div class="player-controls-right">
+                        <!-- Toggle Button -->
+                        <button class="control-btn" onclick="togglePlayerCarousel()" data-tooltip="Favorites">
+                            <i class="fas fa-chevron-up" id="carouselToggleIcon"></i>
+                        </button>
                         <button class="control-btn" onclick="openCollectionModalForCurrent()" data-tooltip="Add to Section"><i class="fas fa-list"></i></button>
                         <button class="control-btn fav-btn" id="favBtn" onclick="toggleFavorite()" data-tooltip="Add to Favorites"><i class="far fa-heart"></i></button>
                         <button class="control-btn remove-btn" onclick="removeCurrentChannel(true)" data-tooltip="Remove Channel"><i class="fas fa-trash-alt"></i></button>
@@ -1108,7 +1211,72 @@
             }
             
             document.getElementById('videoModal').style.display = 'none';
+            const carousel = document.getElementById('playerCarousel');
+            carousel.classList.remove('open');
+            document.getElementById('carouselToggleIcon').className = 'fas fa-chevron-up';
             if(document.fullscreenElement) document.exitFullscreen();
+        }
+
+        // --- PLAYER CAROUSEL LOGIC ---
+        function togglePlayerCarousel() {
+            const carousel = document.getElementById('playerCarousel');
+            const icon = document.getElementById('carouselToggleIcon');
+            const isOpen = carousel.classList.contains('open');
+            
+            if (!isOpen) {
+                renderPlayerCarousel();
+                carousel.classList.add('open');
+                icon.className = 'fas fa-chevron-down'; // Change arrow direction
+            } else {
+                carousel.classList.remove('open');
+                icon.className = 'fas fa-chevron-up';
+            }
+        }
+
+        function renderPlayerCarousel() {
+            const track = document.getElementById('playerCarouselList');
+            track.innerHTML = '';
+
+            // 1. Get Favorites
+            const favoriteChannels = allChannels.filter(c => favoriteNames.includes(c.name));
+
+            if (favoriteChannels.length === 0) {
+                track.innerHTML = '<div style="color:#aaa; width:100%; text-align:center;">No favorites found. Add some <i class="far fa-heart"></i></div>';
+                return;
+            }
+
+            // 2. Render Cards
+            favoriteChannels.forEach(channel => {
+                const isActive = currentChannel && currentChannel.name === channel.name;
+                const gradientBg = getGradient(channel.name);
+                // Validamos si hay logo
+                const hasLogo = channel.logo && channel.logo.length > 5;
+                
+                const card = document.createElement('div');
+                card.className = `carousel-card ${isActive ? 'active' : ''}`;
+                card.style.background = gradientBg;
+
+                card.innerHTML = `
+                    ${hasLogo ? `<img src="${channel.logo}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : ''}
+                    <div class="carousel-card-info" style="${hasLogo ? 'display:none' : ''}">
+                        <span class="carousel-name">${channel.displayName}</span>
+                    </div>
+                `;
+
+                card.onclick = (e) => {
+                    e.stopPropagation();
+                    openPlayer(channel);
+                    renderPlayerCarousel(); 
+                };
+
+                track.appendChild(card);
+                
+                if (isActive) {
+                    setTimeout(() => {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                    }, 100);
+                }
+            });
         }
 
         // --- 8. UTILS & BLACKLIST ---
