@@ -1159,8 +1159,36 @@
         });
         
         window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20));
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePlayer(); closeCollectionModal(); } if (e.key === ' ' && document.getElementById('videoModal').style.display === 'flex') togglePlay(); });
+        document.addEventListener('keydown', (e) => { 
+            const isPlayerOpen = document.getElementById('videoModal').style.display === 'flex';
+            
+            if (e.key === 'Escape') { 
+                closePlayer(); 
+                closeCollectionModal(); 
+            } 
+            
+            if (isPlayerOpen) {
+                const video = document.getElementById('mainVideo');
 
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    togglePlay(); 
+                }
+                if (e.key === 'f' || e.key === 'F') {
+                    toggleFullscreen();
+                }
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    video.currentTime -= 5;
+                    showToast("-5s");
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    video.currentTime += 5;
+                    showToast("+5s");
+                }
+            }
+        });
     </script>
 </body>
 </html>
