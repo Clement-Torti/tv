@@ -332,18 +332,21 @@
         </div>
     </div>
 
-    <header class="hero hidden" id="hero">
+    <header class="hero hidden" id="hero" onclick="playHeroChannel()" style="cursor: pointer;">
         <video id="hero-video-bg" autoplay muted playsinline></video>
         <div class="hero-content">
             <div class="hero-label">TELEVISION</div>
             <h1 class="hero-title" id="hero-title">Loading...</h1>
             <p class="hero-desc" id="hero-desc">Experience the best live TV. Curated channels, instant access from around the globe.</p>
             <div class="hero-buttons">
+                <!-- Play button does the same as background, so it can bubble up or stay as is -->
                 <button class="btn btn-play" onclick="playHeroChannel()"><i class="fas fa-play"></i> Play</button>
-                <button class="btn btn-info" onclick="playRandom()"><i class="fas fa-random"></i> Random</button>
+                <!-- Added event.stopPropagation() to prevent opening the current hero channel when trying to switch to random -->
+                <button class="btn btn-info" onclick="event.stopPropagation(); playRandom()"><i class="fas fa-random"></i> Random</button>
             </div>
         </div>
-        <button class="hero-mute-btn" onclick="toggleHeroMute()" title="Mute/Unmute">
+        <!-- Added event.stopPropagation() so clicking mute doesn't open the full player -->
+        <button class="hero-mute-btn" onclick="event.stopPropagation(); toggleHeroMute()" title="Mute/Unmute">
             <i class="fas fa-volume-mute" id="heroMuteIcon"></i>
         </button>
     </header>
@@ -549,7 +552,7 @@
             
             updateProgressBar(100);
             setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 1000);
-            
+
             parsedChannels = parsedChannels.concat(hardcodedChannels);
             loadData(parsedChannels);
         }
