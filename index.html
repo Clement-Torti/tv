@@ -469,6 +469,17 @@
             }
         }
 
+        const hardcodedChannels = [
+            {
+                name: "Hardcoded MBC3 arabic",
+                displayName: "MBC3 arabic",
+                logo: "",
+                groups: ["Kids"],
+                url: "https://tgn.bozztv.com/eshgtv-trn09/ga-mchannel3/index.m3u8"
+            }
+        ];
+
+
         function parseM3U(data) {
             const lines = data.split('\n');
             let parsedChannels = [];
@@ -539,6 +550,7 @@
             updateProgressBar(100);
             setTimeout(() => document.getElementById('progress-container').style.opacity = '0', 1000);
             
+            parsedChannels = parsedChannels.concat(hardcodedChannels);
             loadData(parsedChannels);
         }
 
