@@ -1619,52 +1619,71 @@
 
         // 3. Load Media to TV
         function loadMediaOnCast() {
-            if (!currentChannel) return;
+    if (!currentChannel) return;
 
-            const session = cast.framework.CastContext.getInstance().getCurrentSession();
-            if (!session) return;
+    const session = cast.framework.CastContext.getInstance().getCurrentSession();
+    if (!session) return;
 
-            // 1. Determine Content Type
-            let contentType = 'application/vnd.apple.mpegurl'; // Standard HLS
-            if (currentChannel.url.indexOf('.mpd') > -1) contentType = 'application/dash+xml';
+    let streamUrl = currentChannel.url;
+    let contentType = 'application/x-mpegurl'; // Standard HLS
 
-            // 2. APPLY PROXY LOGIC (Critical for Chromecast)
-            // Chromecast requires HTTPS and CORS headers. 
-            // If the link is HTTP, we route it through the proxy, just like the local player.
-            let streamUrl = currentChannel.url;
-            if (streamUrl.startsWith('http://')) {
-                streamUrl = 'https://corsproxy.io/?' + encodeURIComponent(streamUrl);
+    // 1. Detect DASH
+    if (streamUrl.indexOf('.mpd') > -1) {
+        contentType = 'application/dash+xml';
+    } 
+    // 2. Detect HLS
+    else if (streamUrl.indexOf('.m3u8') > -1) {
+        contentType = 'application/vnd.apple.mpegurl';
+    }
+
+    // 3. CRITICAL: Handle HTTP vs HTTPS
+    // Chromecast requires HTTPS. Since we cannot use the proxy (relative path issue),
+    // we attempt to upgrade the URL to HTTPS directly. 
+    // If the provider doesn't support HTTPS, this channel simply won't Cast.
+    if (streamUrl.startsWith('http://')) {
+        console.log("Upgrading HTTP to HTTPS for Chromecast...");
+        streamUrl = streamUrl.replace('http://', 'https://');
+    }
+
+    // 4. Create Media Info
+    const mediaInfo = new chrome.cast.media.MediaInfo(streamUrl, contentType);
+    
+    // 5. Add Metadata (Title, Logo)
+    const metadata = new chrome.cast.media.GenericMediaMetadata();
+    metadata.title = currentChannel.displayName;
+    metadata.subtitle = "Live TV"; // Adds a nice subtitle
+    
+    if (currentChannel.logo) {
+        metadata.images = [{ url: currentChannel.logo }];
+    }
+    
+    mediaInfo.metadata = metadata;
+    mediaInfo.streamType = chrome.cast.media.StreamType.LIVE; // Tell TV this is a Live Stream
+
+    const request = new chrome.cast.media.LoadRequest(mediaInfo);
+    request.autoplay = true;
+
+    session.loadMedia(request).then(
+        function() {
+            showToast('Playing on TV: ' + currentChannel.displayName);
+            // Pause local player to save bandwidth/confusion
+            const localVideo = document.getElementById('mainVideo');
+            if (localVideo) {
+                localVideo.pause();
+                updatePlayerIcons(true);
             }
-
-            // 3. Create Media Info
-            const mediaInfo = new chrome.cast.media.MediaInfo(streamUrl, contentType);
-            
-            // Add Metadata (Title, Image)
-            const metadata = new chrome.cast.media.GenericMediaMetadata();
-            metadata.title = currentChannel.displayName;
-            if (currentChannel.logo) {
-                metadata.images = [{ url: currentChannel.logo }];
+        },
+        function(errorCode) {
+            console.error("Cast Error Code:", errorCode);
+            // Specific error handling
+            if (errorCode.code === 'session_error') {
+                showToast('Cast Session Error. Try reconnecting.');
+            } else {
+                showToast('Cast failed. Stream format may be incompatible.');
             }
-            mediaInfo.metadata = metadata;
-
-            const request = new chrome.cast.media.LoadRequest(mediaInfo);
-            request.autoplay = true;
-
-            session.loadMedia(request).then(
-                function() {
-                    showToast('Playing on TV: ' + currentChannel.displayName);
-                    // Pause local player
-                    const localVideo = document.getElementById('mainVideo');
-                    if (localVideo) {
-                        localVideo.pause();
-                        updatePlayerIcons(true);
-                    }
-                },
-                function(errorCode) {
-                    showToast('Cast failed. Error code: ' + errorCode);
-                }
-            );
         }
+    );
+}
     </script>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
