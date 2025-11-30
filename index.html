@@ -11,6 +11,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/dashjs@latest/dist/dash.all.min.js"></script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <link rel="icon" type="image/png" href="favicon.png">
     <style>
         :root {
@@ -497,7 +498,9 @@
                         </div>
                     </div>
                     <div class="player-controls-right">
-                        <!-- Toggle Button -->
+                        <button class="control-btn" is="google-cast-button" id="castBtn" style="display:none; margin-right: 10px;" onclick="triggerChromecast()" data-tooltip="Cast to TV">
+                            <i class="fab fa-chromecast"></i>
+                        </button>
                         <button class="control-btn" onclick="togglePlayerCarousel()" data-tooltip="Favorites">
                             <i class="fas fa-chevron-up" id="carouselToggleIcon"></i>
                         </button>
@@ -1098,6 +1101,20 @@
         // --- 7. PLAYER LOGIC ---
         function openPlayer(channel) {
             currentChannel = channel;
+
+            if (window.cast && cast.framework) {
+            const session = cast.framework.CastContext.getInstance().getCurrentSession();
+            if (session) {
+                // Update UI Title
+                document.getElementById('playerTitle').innerText = channel.displayName;
+                document.getElementById('videoModal').style.display = 'flex';
+                // Load on TV
+                loadMediaOnCast();
+                // Optional: prevent local HLS/Dash loading if casting
+                // return; 
+            }
+        }
+
             document.getElementById('playerTitle').innerText = channel.displayName;
             
             const heroVid = document.getElementById('hero-video-bg');
@@ -1438,6 +1455,99 @@
                 }
             }
         });
+
+
+        // --- CHROMECAST LOGIC ---
+
+        // 1. Initialize Chromecast API
+        window['__onGCastApiAvailable'] = function(isAvailable) {
+            if (isAvailable) {
+                cast.framework.CastContext.getInstance().setOptions({
+                    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                });
+
+                // Show button if API loads successfully
+                const castBtn = document.getElementById('castBtn');
+                if(castBtn) castBtn.style.display = 'inline-block';
+                
+                // Listener to detect if we are already connected (to handle channel switching)
+                const context = cast.framework.CastContext.getInstance();
+                context.addEventListener(
+                    cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+                    function(event) {
+                        if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
+                            showToast("Connected to TV");
+                            // If video is playing locally, load it to TV
+                            if(currentChannel) loadMediaOnCast(); 
+                        } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+                            showToast("Disconnected from TV");
+                        }
+                    }
+                );
+            }
+        };
+
+        // 2. Button Trigger
+        function triggerChromecast() {
+            const context = cast.framework.CastContext.getInstance();
+            const session = context.getCurrentSession();
+
+            if (session) {
+                // If already connected, this opens the native Stop/Control dialog
+                context.requestSession(); 
+            } else {
+                // If not connected, open Cast menu
+                context.requestSession().then(
+                    () => { 
+                        // Session started successfully, load media
+                        loadMediaOnCast(); 
+                    },
+                    (err) => { console.error('Cast Error:', err); }
+                );
+            }
+        }
+
+        // 3. Load Media to TV
+        function loadMediaOnCast() {
+            if (!currentChannel) return;
+
+            const session = cast.framework.CastContext.getInstance().getCurrentSession();
+            if (!session) return;
+
+            // Define content type based on extension or default to HLS
+            let contentType = 'application/x-mpegurl'; // Default for m3u8
+            if (currentChannel.url.indexOf('.mpd') > -1) contentType = 'application/dash+xml';
+
+            // Create Media Info
+            const mediaInfo = new chrome.cast.media.MediaInfo(currentChannel.url, contentType);
+            
+            // Add Metadata (Title, Image)
+            const metadata = new chrome.cast.media.GenericMediaMetadata();
+            metadata.title = currentChannel.displayName;
+            if (currentChannel.logo) {
+                metadata.images = [{ url: currentChannel.logo }];
+            }
+            mediaInfo.metadata = metadata;
+
+            const request = new chrome.cast.media.LoadRequest(mediaInfo);
+            request.autoplay = true;
+
+            session.loadMedia(request).then(
+                function() {
+                    showToast('Playing on TV: ' + currentChannel.displayName);
+                    // Pause local player to prevent double audio
+                    const localVideo = document.getElementById('mainVideo');
+                    if (localVideo) {
+                        localVideo.pause();
+                        updatePlayerIcons(true);
+                    }
+                },
+                function(errorCode) {
+                    showToast('Cast failed. Error: ' + errorCode);
+                }
+            );
+        }
     </script>
 </body>
 </html>
