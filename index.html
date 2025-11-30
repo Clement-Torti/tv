@@ -581,6 +581,7 @@
         let playerHls = null;
         let playerDash = null; 
         let heroHls = null;
+        let heroDash = null; 
         let heroChannel = null;
         let targetCollectionChannel = null;
 
@@ -1044,35 +1045,6 @@
         }
 
 
-        function playHeroRandom(pool) {
-            if(heroHls) heroHls.destroy();
-            // Simple fallback: If first random fails, we might just have a blank hero.
-            // Real fix is in the playerHls error handler for the main player.
-            heroChannel = pool[Math.floor(Math.random() * pool.length)];
-            document.getElementById('hero-title').innerText = heroChannel.displayName;
-            const video = document.getElementById('hero-video-bg');
-            video.muted = true; 
-            document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
-            
-            if (Hls.isSupported()) {
-                heroHls = new Hls({ enableWorker: true, lowLatencyMode: true });
-                heroHls.loadSource(heroChannel.url);
-                heroHls.attachMedia(video);
-                heroHls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => {}));
-                heroHls.on(Hls.Events.ERROR, (e, data) => { 
-                    if(data.fatal) {
-                        // If hero fails due to HTTPS/Mixed Content, try another
-                        setTimeout(() => {
-                            if(pool.length > 1) playHeroRandom(pool);
-                        }, 1000); 
-                    }
-                });
-            } else {
-                 video.src = heroChannel.url;
-                 video.play().catch(e => {});
-            }
-        }
-
         function toggleHeroMute() {
             const video = document.getElementById('hero-video-bg');
             video.muted = !video.muted;
@@ -1081,9 +1053,11 @@
 
         function playHeroChannel() { if(heroChannel) openPlayer(heroChannel); }
         function playHeroRandom(pool) {
-            if(heroHls) { heroHls.destroy(); heroHls = null; }
+            // 1. Cleanup previous instances
+            if (heroHls) { heroHls.destroy(); heroHls = null; }
+            if (heroDash) { heroDash.reset(); heroDash = null; }
             
-            // 1. Seleccionar canal
+            // 2. Select Channel
             heroChannel = pool[Math.floor(Math.random() * pool.length)];
             document.getElementById('hero-title').innerText = heroChannel.displayName;
             
@@ -1091,21 +1065,35 @@
             video.muted = true; 
             document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
             
-            // 2. Preparar lógica de Proxy/HTTPS (igual que openPlayer)
+            // 3. Prepare Logic (Proxy & Type) matches openPlayer logic
             let streamUrl = heroChannel.url;
             let usingProxy = false;
             let hasTriedHttpsFallback = false;
+            const isDash = streamUrl.indexOf('.mpd') > -1;
 
+            // Apply Proxy if HTTP
             if (streamUrl.startsWith('http://')) {
                 usingProxy = true;
                 streamUrl = 'https://corsproxy.io/?' + encodeURIComponent(streamUrl);
             }
 
-            if (Hls.isSupported()) {
+            // 4. Initialize Player based on type
+            if (isDash) {
+                // --- DASH HANDLER ---
+                heroDash = dashjs.MediaPlayer().create();
+                heroDash.initialize(video, streamUrl, true);
+                heroDash.on(dashjs.MediaPlayer.events.ERROR, (e) => {
+                    console.warn("Hero Dash Error", e);
+                    // Retry with another channel on failure
+                    setTimeout(() => { if(pool.length > 1) playHeroRandom(pool); }, 1000);
+                });
+
+            } else if (Hls.isSupported()) {
+                // --- HLS HANDLER ---
                 heroHls = new Hls({ 
                     enableWorker: true, 
                     lowLatencyMode: true,
-                    // Fix para rutas relativas dentro del proxy
+                    // Magic fix for relative paths inside Proxy
                     xhrSetup: function (xhr, url) {
                         if (usingProxy && url.startsWith('https://corsproxy.io/') && !url.includes('?')) {
                             const relativePath = url.replace('https://corsproxy.io/', '');
@@ -1122,27 +1110,32 @@
                 
                 heroHls.on(Hls.Events.ERROR, (e, data) => { 
                     if(data.fatal) {
-                        // A. INTENTO 1: Si falló el Proxy, intentar forzar HTTPS directo
+                        // Logic A: Try forcing HTTPS direct if Proxy failed
                         if (usingProxy && !hasTriedHttpsFallback) {
                             console.log("Hero Proxy failed. Retrying direct HTTPS...");
                             hasTriedHttpsFallback = true;
                             usingProxy = false;
+                            heroHls.destroy(); // Re-init needed for clean state sometimes, or just loadSource
+                            // Ideally we create new HLS, but loading source might work:
                             const secureUrl = heroChannel.url.replace('http://', 'https://');
                             heroHls.loadSource(secureUrl);
                             return;
                         }
 
-                        // B. INTENTO 2: Si todo falla, buscar otro canal random
+                        // Logic B: Give up and try new channel
                         heroHls.destroy();
                         setTimeout(() => {
                             if(pool.length > 1) playHeroRandom(pool);
                         }, 1000); 
                     }
                 });
+
             } else {
-                 // Fallback nativo (Safari)
-                 video.src = streamUrl;
-                 video.play().catch(e => {});
+                // --- NATIVE / SAFARI HANDLER ---
+                // Note: We use 'streamUrl' here which already has the Proxy applied if needed.
+                // This fixes Safari refusing to play HTTP streams on HTTPS sites.
+                video.src = streamUrl;
+                video.play().catch(e => {});
             }
         }
 
