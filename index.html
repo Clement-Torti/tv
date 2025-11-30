@@ -1514,12 +1514,20 @@
             const session = cast.framework.CastContext.getInstance().getCurrentSession();
             if (!session) return;
 
-            // Define content type based on extension or default to HLS
-            let contentType = 'application/x-mpegurl'; // Default for m3u8
+            // 1. Determine Content Type
+            let contentType = 'application/vnd.apple.mpegurl'; // Standard HLS
             if (currentChannel.url.indexOf('.mpd') > -1) contentType = 'application/dash+xml';
 
-            // Create Media Info
-            const mediaInfo = new chrome.cast.media.MediaInfo(currentChannel.url, contentType);
+            // 2. APPLY PROXY LOGIC (Critical for Chromecast)
+            // Chromecast requires HTTPS and CORS headers. 
+            // If the link is HTTP, we route it through the proxy, just like the local player.
+            let streamUrl = currentChannel.url;
+            if (streamUrl.startsWith('http://')) {
+                streamUrl = 'https://corsproxy.io/?' + encodeURIComponent(streamUrl);
+            }
+
+            // 3. Create Media Info
+            const mediaInfo = new chrome.cast.media.MediaInfo(streamUrl, contentType);
             
             // Add Metadata (Title, Image)
             const metadata = new chrome.cast.media.GenericMediaMetadata();
@@ -1535,7 +1543,7 @@
             session.loadMedia(request).then(
                 function() {
                     showToast('Playing on TV: ' + currentChannel.displayName);
-                    // Pause local player to prevent double audio
+                    // Pause local player
                     const localVideo = document.getElementById('mainVideo');
                     if (localVideo) {
                         localVideo.pause();
@@ -1543,7 +1551,7 @@
                     }
                 },
                 function(errorCode) {
-                    showToast('Cast failed. Error: ' + errorCode);
+                    showToast('Cast failed. Error code: ' + errorCode);
                 }
             );
         }
