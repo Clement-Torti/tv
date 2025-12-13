@@ -372,6 +372,7 @@
         
         /* Mobile Media Queries */
         @media (max-width: 880px) { .primary-navigation .nav-tab:not(#tv-nav-item):not(.always-visible) { display: none; } }
+        @media (max-width: 880px) { .toHide { display: none; } }
         @media (max-width: 768px) {
             nav { padding: 0 3%; height: 50px; }
             .logo-img { height: 20px; }
@@ -420,8 +421,8 @@
             
             <ul class="primary-navigation">
                 <li class="nav-tab"><a href="https://clement-torti.github.io/tv/">Inicio</a></li>
-                <li class="nav-tab"><a href="#" onclick="openSeries()">Series</a></li>
-                <li class="nav-tab"><a href="#" onclick="openMovies()">Películas</a></li>
+                <li class="nav-tab always-visible"><a href="#" onclick="openSeries()">Series</a></li>
+                <li class="nav-tab always-visible"><a href="#" onclick="openMovies()">Películas</a></li>
                 <!-- <li class="nav-tab"><a href="#">Juegos</a></li>
                 <li class="nav-tab"><a href="#">Novedades populares</a></li>
                 <li class="nav-tab"><a href="https://www.netflix.com/browse/my-list">Mi lista</a></li>
@@ -435,7 +436,7 @@
                         <!-- Populated by JS -->
                     </div>
                 </li>
-                <li class="nav-tab"><a href="https://www.netflix.com/browse">Netflix</a></li>
+                <li class="nav-tab toHide"><a href="https://www.netflix.com/browse">Netflix</a></li>
             </ul>
         </div>
         
@@ -446,7 +447,7 @@
                 </button>
                 <input type="text" class="search-input" placeholder="Titles, people, genres" id="searchInput" oninput="handleSearch(this.value)">
             </div>
-            <div class="nav-element"><i class="far fa-bell"></i></div>
+            <div class="nav-element toHide"><i class="far fa-bell"></i></div>
             <div class="nav-element profile-menu">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png" alt="Profile" class="profile-img">
                 <i class="fas fa-caret-down caret-icon"></i>
