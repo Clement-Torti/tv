@@ -385,6 +385,25 @@
             .speed-controls { display: none; }
             .player-title { font-size: 1rem; text-align: left; margin-left: 0; }
         }
+
+/* --- PORTRAIT GRIDS (Movies & Series) --- */
+#movieGrid, #seriesGrid {
+    /* Narrower columns for posters */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; 
+    gap: 15px !important;
+}
+
+#movieGrid .card, #seriesGrid .card {
+    /* Portrait aspect ratio (2:3) */
+    aspect-ratio: 2/3 !important; 
+}
+
+#movieGrid .channel-name, #seriesGrid .channel-name {
+    /* Allow titles to wrap and center text */
+    white-space: normal !important; 
+    line-height: 1.2;
+    text-align: center;
+}
     </style>
 </head>
 <body>
@@ -395,18 +414,18 @@
 
     <nav id="navbar">
         <div class="nav-left">
-            <div class="logo" onclick="window.location.href='https://www.netflix.com/browse'">
+            <div class="logo" onclick="window.location.href='https://clement-torti.github.io/tv/'">
                 <img src="netflix.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg'" alt="Netflix" class="logo-img">
             </div>
             
             <ul class="primary-navigation">
                 <li class="nav-tab"><a href="https://clement-torti.github.io/tv/">Inicio</a></li>
-                <li class="nav-tab"><a href="https://www.netflix.com/browse/genre/83">Series</a></li>
-                <li class="nav-tab"><a href="https://www.netflix.com/browse/genre/34399">Películas</a></li>
-                <li class="nav-tab"><a href="#">Juegos</a></li>
+                <li class="nav-tab"><a href="#" onclick="openSeries()">Series</a></li>
+                <li class="nav-tab"><a href="#" onclick="openMovies()">Películas</a></li>
+                <!-- <li class="nav-tab"><a href="#">Juegos</a></li>
                 <li class="nav-tab"><a href="#">Novedades populares</a></li>
                 <li class="nav-tab"><a href="https://www.netflix.com/browse/my-list">Mi lista</a></li>
-                <li class="nav-tab"><a href="https://www.netflix.com/browse/original-audio">Explorar por idioma</a></li>
+                <li class="nav-tab"><a href="https://www.netflix.com/browse/original-audio">Explorar por idioma</a></li> -->
                 <li class="nav-tab nav-dropdown-container" id="tv-nav-item">
                     <button class="nav-dropdown-btn" onclick="toggleDropdown()">
                         <span id="currentSectionLabel">TV</span>
@@ -416,6 +435,7 @@
                         <!-- Populated by JS -->
                     </div>
                 </li>
+                <li class="nav-tab"><a href="https://www.netflix.com/browse">Netflix</a></li>
             </ul>
         </div>
         
@@ -1696,6 +1716,382 @@
         videoElement.addEventListener('leavepictureinpicture', () => {
             // Retour à la normale
         });
+
+        // --- MOVIE SECTION INTEGRATION ---
+    const MOVIE_BASE_URL = 'https://pelispedia.mov';
+    const MOVIE_PROXY = 'https://api.allorigins.win/get?url=';
+    
+    let movieState = {
+        mode: 'POPULAR',
+        page: 1,
+        query: ''
+    };
+
+    function openMovies() {
+        // 1. Update Navigation State
+        currentView = 'movies';
+        resetSearch(); // Clear main TV search if active
+        document.getElementById('hero').classList.add('hidden');
+        
+        // 2. Update Dropdown Label (Visual feedback)
+        const dropdownBtn = document.getElementById('currentSectionLabel');
+        if(dropdownBtn) dropdownBtn.innerText = "Movies";
+
+        // 3. Inject Movie-Specific Interface into #app-content
+        const contentDiv = document.getElementById('app-content');
+        contentDiv.classList.remove('section-home');
+        contentDiv.classList.add('section-grid');
+        
+        contentDiv.innerHTML = `
+            <div class="section-title">
+                <i class="fas fa-film"></i> Movies
+            </div>
+            
+            <!-- MOVIE SPECIFIC SEARCH BAR -->
+            <div style="margin: 0 0 20px 0; display:flex; gap:10px; padding-bottom: 20px; border-bottom: 1px solid #333;">
+                <input type="text" id="movieSearchInput" placeholder="Search PelisPedia..." 
+                    style="background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 4px; font-size: 16px; flex:1;"
+                    onkeypress="if(event.key === 'Enter') triggerMovieSearch()">
+                <button class="btn btn-play" onclick="triggerMovieSearch()" style="padding: 0 20px; font-size: 0.9rem;">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-info" onclick="resetMovies()" style="padding: 0 20px; font-size: 0.9rem;">
+                    Popular
+                </button>
+            </div>
+
+            <!-- LOADING INDICATOR -->
+            <div id="movieLoader" style="text-align:center; padding: 40px; color: var(--primary); display:none;">
+                <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Loading Movies...
+            </div>
+
+            <!-- MOVIE GRID (Reusing your grid-container) -->
+            <div id="movieGrid" class="grid-container"></div>
+
+            <!-- PAGINATION -->
+            <div id="moviePagination" style="display:flex; justify-content:center; gap:15px; margin-top:40px; align-items:center;">
+                <button class="btn btn-info" onclick="changeMoviePage(-1)" id="btnPrevMovie">Previous</button>
+                <span id="moviePageIndicator" style="font-weight:bold; color:white;">Page 1</span>
+                <button class="btn btn-info" onclick="changeMoviePage(1)">Next</button>
+            </div>
+        `;
+
+        // 4. Initial Fetch
+        fetchMovies();
+    }
+
+    async function fetchMovies() {
+        const grid = document.getElementById('movieGrid');
+        const loader = document.getElementById('movieLoader');
+        const pagination = document.getElementById('moviePagination');
+        
+        if(!grid) return; // Guard clause if user navigated away
+
+        grid.innerHTML = '';
+        loader.style.display = 'block';
+        pagination.style.opacity = '0.5';
+        pagination.style.pointerEvents = 'none';
+
+        // Construct URL
+        let targetUrl = '';
+        if (movieState.mode === 'SEARCH') {
+            const pageParam = movieState.page > 1 ? `&page=${movieState.page}` : '';
+            targetUrl = `${MOVIE_BASE_URL}/search?s=${encodeURIComponent(movieState.query)}${pageParam}`;
+        } else {
+            const pageParam = movieState.page > 1 ? `?page=${movieState.page}` : '';
+            targetUrl = `${MOVIE_BASE_URL}/peliculas/populares${pageParam}`;
+        }
+
+        try {
+            const response = await fetch(MOVIE_PROXY + encodeURIComponent(targetUrl));
+            if (!response.ok) throw new Error("Proxy Error");
+            const data = await response.json();
+            if (!data.contents) throw new Error("No Data");
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+
+            // Scrape Logic specific to PelisPedia structure
+            let items = Array.from(doc.querySelectorAll('article'));
+            if (items.length === 0) items = Array.from(doc.querySelectorAll('li.movie, .result-item')); // Fallbacks
+            if (items.length === 0) {
+                 // Final fallback for generic links with images
+                 items = Array.from(doc.querySelectorAll('a')).filter(a => a.querySelector('img') && a.href.includes('/pelicula/'));
+            }
+
+            if (items.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px;">No movies found.</div>';
+            } else {
+                items.forEach(item => {
+                    const movie = extractMovieData(item);
+                    if (movie) {
+                        // We use createMovieCardHtml to match your existing styling
+                        grid.innerHTML += createMovieCardHtml(movie);
+                    }
+                });
+            }
+
+            // Update Pagination UI
+            document.getElementById('moviePageIndicator').innerText = `Page ${movieState.page}`;
+            document.getElementById('btnPrevMovie').disabled = movieState.page === 1;
+            if(movieState.page === 1) document.getElementById('btnPrevMovie').style.opacity = 0.5;
+            else document.getElementById('btnPrevMovie').style.opacity = 1;
+
+        } catch (e) {
+            console.error(e);
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#666;">Error loading content: ${e.message}</div>`;
+        } finally {
+            loader.style.display = 'none';
+            pagination.style.opacity = '1';
+            pagination.style.pointerEvents = 'auto';
+            window.scrollTo(0, 0);
+        }
+    }
+
+    function extractMovieData(element) {
+        try {
+            const linkTag = element.tagName === 'A' ? element : element.querySelector('a');
+            if (!linkTag) return null;
+
+            let link = linkTag.getAttribute('href');
+            if (!link.startsWith('http')) link = MOVIE_BASE_URL + link;
+
+            const imgTag = element.querySelector('img');
+            if (!imgTag) return null;
+
+            let poster = imgTag.dataset.src || imgTag.src;
+            if (poster && !poster.startsWith('http')) poster = MOVIE_BASE_URL + poster;
+
+            let title = element.querySelector('h2, h3, .title')?.innerText || imgTag.alt;
+            let year = element.querySelector('.year, .date')?.innerText || '';
+
+            return { title, poster, link, year };
+        } catch(e) { return null; }
+    }
+
+    function createMovieCardHtml(movie) {
+    const gradientBg = getGradient(movie.title);
+    
+    // CHANGED: onclick uses window.open(url, '_blank') to open in new tab
+    return `
+    <div class="card" onclick="window.open('${movie.link}', '_blank')" style="background: ${gradientBg}">
+        <img src="${movie.poster}" 
+                onerror="this.style.opacity='0.1'" 
+                loading="lazy" 
+                alt="${movie.title}"
+                style="width:100%; height:100%; object-fit:cover;">
+        
+        <div class="card-info">
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items: center; text-align: center;">
+                <span class="channel-name" style="font-size: 0.9rem; margin-bottom: 5px;">${movie.title}</span>
+                <span style="font-size: 0.8rem; color: #ccc;">${movie.year}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+    // --- MOVIE CONTROLS ---
+    function triggerMovieSearch() {
+        const input = document.getElementById('movieSearchInput');
+        const q = input.value.trim();
+        if(!q) return;
+        movieState.mode = 'SEARCH';
+        movieState.query = q;
+        movieState.page = 1;
+        fetchMovies();
+    }
+
+    function resetMovies() {
+        document.getElementById('movieSearchInput').value = '';
+        movieState.mode = 'POPULAR';
+        movieState.page = 1;
+        fetchMovies();
+    }
+
+    function changeMoviePage(delta) {
+        const newPage = movieState.page + delta;
+        if(newPage < 1) return;
+        movieState.page = newPage;
+        fetchMovies();
+    }
+
+    // --- SERIES SECTION INTEGRATION ---
+    
+    // We reuse MOVIE_BASE_URL and MOVIE_PROXY from the previous code
+    
+    let seriesState = {
+        mode: 'POPULAR',
+        page: 1,
+        query: ''
+    };
+
+    function openSeries() {
+        // 1. Update Navigation State
+        currentView = 'series';
+        resetSearch(); 
+        document.getElementById('hero').classList.add('hidden');
+        
+        // 2. Update Dropdown Label
+        const dropdownBtn = document.getElementById('currentSectionLabel');
+        if(dropdownBtn) dropdownBtn.innerText = "Series";
+
+        // 3. Inject Series Interface
+        const contentDiv = document.getElementById('app-content');
+        contentDiv.classList.remove('section-home');
+        contentDiv.classList.add('section-grid');
+        
+        contentDiv.innerHTML = `
+            <div class="section-title">
+                <i class="fas fa-tv"></i> TV Series
+            </div>
+            
+            <!-- SERIES SEARCH BAR -->
+            <div style="margin: 0 0 20px 0; display:flex; gap:10px; padding-bottom: 20px; border-bottom: 1px solid #333;">
+                <input type="text" id="seriesSearchInput" placeholder="Search Series..." 
+                    style="background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 4px; font-size: 16px; flex:1;"
+                    onkeypress="if(event.key === 'Enter') triggerSeriesSearch()">
+                <button class="btn btn-play" onclick="triggerSeriesSearch()" style="padding: 0 20px; font-size: 0.9rem;">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-info" onclick="resetSeries()" style="padding: 0 20px; font-size: 0.9rem;">
+                    Popular
+                </button>
+            </div>
+
+            <!-- LOADING INDICATOR -->
+            <div id="seriesLoader" style="text-align:center; padding: 40px; color: var(--primary); display:none;">
+                <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Loading Series...
+            </div>
+
+            <!-- SERIES GRID (Portrait) -->
+            <div id="seriesGrid" class="grid-container"></div>
+
+            <!-- PAGINATION -->
+            <div id="seriesPagination" style="display:flex; justify-content:center; gap:15px; margin-top:40px; align-items:center;">
+                <button class="btn btn-info" onclick="changeSeriesPage(-1)" id="btnPrevSeries">Previous</button>
+                <span id="seriesPageIndicator" style="font-weight:bold; color:white;">Page 1</span>
+                <button class="btn btn-info" onclick="changeSeriesPage(1)">Next</button>
+            </div>
+        `;
+
+        // 4. Initial Fetch
+        fetchSeries();
+    }
+
+    async function fetchSeries() {
+        const grid = document.getElementById('seriesGrid');
+        const loader = document.getElementById('seriesLoader');
+        const pagination = document.getElementById('seriesPagination');
+        
+        if(!grid) return; 
+
+        grid.innerHTML = '';
+        loader.style.display = 'block';
+        pagination.style.opacity = '0.5';
+        pagination.style.pointerEvents = 'none';
+
+        // Construct URL
+        let targetUrl = '';
+        if (seriesState.mode === 'SEARCH') {
+            const pageParam = seriesState.page > 1 ? `&page=${seriesState.page}` : '';
+            targetUrl = `${MOVIE_BASE_URL}/search?s=${encodeURIComponent(seriesState.query)}${pageParam}`;
+        } else {
+            // Pointing to /series endpoint
+            const pageParam = seriesState.page > 1 ? `?page=${seriesState.page}` : '';
+            targetUrl = `${MOVIE_BASE_URL}/series${pageParam}`;
+        }
+
+        try {
+            const response = await fetch(MOVIE_PROXY + encodeURIComponent(targetUrl));
+            if (!response.ok) throw new Error("Proxy Error");
+            const data = await response.json();
+            if (!data.contents) throw new Error("No Data");
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+
+            let items = Array.from(doc.querySelectorAll('article'));
+            if (items.length === 0) items = Array.from(doc.querySelectorAll('li.movie, .result-item')); 
+            
+            // Fallback for Series specifically (sometimes styled differently)
+            if (items.length === 0) {
+                 items = Array.from(doc.querySelectorAll('a')).filter(a => a.querySelector('img') && (a.href.includes('/serie/') || a.href.includes('/tv/')));
+            }
+
+            if (items.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px;">No series found.</div>';
+            } else {
+                items.forEach(item => {
+                    const series = extractMovieData(item); // We reuse the extractor as the HTML structure is usually identical
+                    if (series) {
+                        grid.innerHTML += createSeriesCardHtml(series);
+                    }
+                });
+            }
+
+            // Update Pagination UI
+            document.getElementById('seriesPageIndicator').innerText = `Page ${seriesState.page}`;
+            document.getElementById('btnPrevSeries').disabled = seriesState.page === 1;
+            if(seriesState.page === 1) document.getElementById('btnPrevSeries').style.opacity = 0.5;
+            else document.getElementById('btnPrevSeries').style.opacity = 1;
+
+        } catch (e) {
+            console.error(e);
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#666;">Error loading content: ${e.message}</div>`;
+        } finally {
+            loader.style.display = 'none';
+            pagination.style.opacity = '1';
+            pagination.style.pointerEvents = 'auto';
+            window.scrollTo(0, 0);
+        }
+    }
+
+    // Identical to Movie Card but for consistency we name it Series
+    function createSeriesCardHtml(item) {
+        const gradientBg = getGradient(item.title);
+        
+        // Opens in new tab
+        return `
+        <div class="card" onclick="window.open('${item.link}', '_blank')" style="background: ${gradientBg}">
+            <img src="${item.poster}" 
+                 onerror="this.style.opacity='0.1'" 
+                 loading="lazy" 
+                 alt="${item.title}"
+                 style="width:100%; height:100%; object-fit:cover;">
+            
+            <div class="card-info">
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items: center; text-align: center;">
+                    <span class="channel-name" style="font-size: 0.9rem; margin-bottom: 5px;">${item.title}</span>
+                    <span style="font-size: 0.8rem; color: #ccc;">${item.year}</span>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // --- SERIES CONTROLS ---
+    function triggerSeriesSearch() {
+        const input = document.getElementById('seriesSearchInput');
+        const q = input.value.trim();
+        if(!q) return;
+        seriesState.mode = 'SEARCH';
+        seriesState.query = q;
+        seriesState.page = 1;
+        fetchSeries();
+    }
+
+    function resetSeries() {
+        document.getElementById('seriesSearchInput').value = '';
+        seriesState.mode = 'POPULAR';
+        seriesState.page = 1;
+        fetchSeries();
+    }
+
+    function changeSeriesPage(delta) {
+        const newPage = seriesState.page + delta;
+        if(newPage < 1) return;
+        seriesState.page = newPage;
+        fetchSeries();
+    }
     </script>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
