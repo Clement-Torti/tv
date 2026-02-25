@@ -215,7 +215,9 @@
         .video-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .video-wrapper { width: 100%; height: 100%; position: relative; background: black; }
         video#mainVideo { width: 100%; height: 100%; object-fit: contain; }
+        ::cue { text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000; }
         #ttml-rendering-div { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
+        #ttml-rendering-div span, #ttml-rendering-div div, #ttml-rendering-div p { text-shadow: 1px 1px 3px #000, -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000 !important; }
         .player-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; pointer-events: none; }        
         .player-carousel {
             position: absolute;
