@@ -597,7 +597,6 @@
         let allChannels = [];
         let favoriteNames = JSON.parse(localStorage.getItem('clement_favorites')) || [];
         let customSections = JSON.parse(localStorage.getItem('clement_custom_sections')) || [];
-        let blacklistedUrls = JSON.parse(localStorage.getItem('clement_blacklist')) || [];
         
         // View State for Navigation Logic
         let currentView = 'home'; // home, category, search, custom, favorites
@@ -716,15 +715,9 @@
                     // FIX: MIXED CONTENT
                     // 1. We attempt to rewrite http:// to https://
                     // 2. The meta tag in <head> will attempt to handle the rest.
-                    // 3. If the server does not support HTTPS, the player error handler will blacklist it.
-                    let finalUrl = line;
-                    //if (line.startsWith('http://')) {
-                    //     finalUrl = line.replace('http://', 'https://');
-                   // }
+                    currentItem.url = line;
 
-                    currentItem.url = finalUrl;
-                    
-                    if (currentItem.name && !blacklistedUrls.includes(finalUrl) && !blacklistedUrls.includes(line)) {
+                    if (currentItem.name) {
                         parsedChannels.push({...currentItem});
                     }
                     currentItem = {};
@@ -1284,7 +1277,6 @@
 
                             // If we already tried fallback or weren't using proxy, show error
                             showToast(`Stream unavailable: ${channel.displayName}`);
-                            removeCurrentChannel(false);
                             closePlayer();
                         } 
                     });
@@ -1395,51 +1387,23 @@
             });
         }
 
-        // --- 8. UTILS & BLACKLIST ---
-        function blacklistChannel(channel, refreshUI = true) {
-            if(!blacklistedUrls.includes(channel.url)) {
-                blacklistedUrls.push(channel.url);
-                // Also blacklist the original http version if we upgraded it
-                if(channel.url.startsWith('https')) {
-                     blacklistedUrls.push(channel.url.replace('https', 'http'));
-                }
-                localStorage.setItem('clement_blacklist', JSON.stringify(blacklistedUrls));
-            }
-            
-            const favIndex = favoriteNames.indexOf(channel.name);
-            if (favIndex > -1) { 
-                favoriteNames.splice(favIndex, 1); 
-                localStorage.setItem('clement_favorites', JSON.stringify(favoriteNames)); 
-            }
-            
-            customSections.forEach(sec => {
-                sec.channels = sec.channels.filter(c => c !== channel.name);
-            });
-            localStorage.setItem('clement_custom_sections', JSON.stringify(customSections));
-            
-            allChannels = allChannels.filter(c => c.url !== channel.url);
-            
-            if(refreshUI) {
-                // KEY FIX: Check View State to decide where to go
-                if (currentView === 'search' && currentSearchQuery) {
-                    handleSearch(currentSearchQuery);
-                } else {
-                    const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
-                    if(active === 'Home') renderAllSections();
-                    else if(active === 'My Favorites') renderFavorites();
-                    else {
-                        const customSec = customSections.find(s => s.name === active);
-                        if(customSec) filterByCustomSection(customSec.id);
-                        else filterBySection(active);
-                    }
-                }
-            }
-        }
-
+        // --- 8. UTILS ---
         function removeCurrentChannel(confirmAction) {
-            if(confirmAction && !confirm("Permanently remove this channel?")) return;
-            blacklistChannel(currentChannel, true); 
+            if(confirmAction && !confirm("Remove this channel?")) return;
+            allChannels = allChannels.filter(c => c.url !== currentChannel.url);
             closePlayer();
+            if (currentView === 'search' && currentSearchQuery) {
+                handleSearch(currentSearchQuery);
+            } else {
+                const active = document.querySelector('.nav-item.active') ? document.querySelector('.nav-item.active').innerText : 'Home';
+                if(active === 'Home') renderAllSections();
+                else if(active === 'My Favorites') renderFavorites();
+                else {
+                    const customSec = customSections.find(s => s.name === active);
+                    if(customSec) filterByCustomSection(customSec.id);
+                    else filterBySection(active);
+                }
+            }
         }
         
         function toggleFavorite() {
