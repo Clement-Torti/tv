@@ -40,7 +40,7 @@ function init() {
     initContentInteractions();
     initPlayerAutoHide();
     initGlobalListeners();
-    fetchRepository();
+    loadChannelList();
 }
 
 init();

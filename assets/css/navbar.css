@@ -22,7 +22,7 @@ nav.scrolled { background-color: rgb(20, 20, 20); }
 .nav-dropdown-container { position: relative; display: inline-block; }
 .nav-dropdown-btn { background: transparent; color: #e5e5e5; border: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit; }
 .nav-dropdown-btn:hover { color: #b3b3b3; }
-.nav-dropdown-menu { position: absolute; top: 30px; left: 0; background: rgba(0,0,0,0.9); border: 1px solid #333; border-top: 2px solid white; min-width: 200px; display: none; flex-direction: column; padding: 10px 0; max-height: 60vh; overflow-y: auto; }
+.nav-dropdown-menu { position: absolute; top: 30px; left: 0; background: rgba(0,0,0,0.9); border: 1px solid #333; border-top: 2px solid white; min-width: 235px; display: none; flex-direction: column; padding: 10px 0; max-height: 60vh; overflow-y: auto; }
 .nav-dropdown-menu.show { display: flex; }
 .nav-item { padding: 10px 20px; cursor: pointer; transition: 0.2s; font-size: 13px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
 .nav-item:hover { text-decoration: underline; }
@@ -55,3 +55,29 @@ nav.scrolled { background-color: rgb(20, 20, 20); }
     .logo-img { height: 20px; }
     .search-box.active .search-input { width: 150px; background: #141414; }
 }
+
+/* --- "Hide broken channels" toggle --- */
+.nav-toggle { gap: 12px; }
+.nav-toggle span:first-child { white-space: nowrap; }
+.toggle-pill {
+    flex-shrink: 0;
+    width: 34px;
+    height: 18px;
+    border-radius: 9px;
+    background: #444;
+    position: relative;
+    transition: background 0.2s;
+}
+.toggle-pill::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+.toggle-pill.on { background: var(--primary); }
+.toggle-pill.on::after { transform: translateX(16px); }

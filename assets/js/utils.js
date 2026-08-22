@@ -47,26 +47,3 @@ function hasLogo(channel) {
 function isDashStream(url) {
     return String(url).indexOf('.mpd') > -1;
 }
-
-/* Plain-HTTP streams are blocked on an HTTPS page, so route them through the proxy. */
-function toPlayableUrl(url) {
-    return url.startsWith('http://') ? STREAM_PROXY + encodeURIComponent(url) : url;
-}
-
-function needsProxy(url) {
-    return url.startsWith('http://');
-}
-
-/*
- * hls.js resolves playlist-relative segment paths against the proxy origin, which
- * 404s. This rewrites those requests back onto the original stream folder.
- */
-function makeProxyXhrSetup(getOriginalUrl, isProxyActive) {
-    return function (xhr, url) {
-        if (!isProxyActive() || !url.startsWith(STREAM_PROXY_ORIGIN) || url.includes('?')) return;
-        const relativePath = url.slice(STREAM_PROXY_ORIGIN.length);
-        const originalUrl = getOriginalUrl();
-        const originalBase = originalUrl.substring(0, originalUrl.lastIndexOf('/') + 1);
-        xhr.open('GET', STREAM_PROXY + encodeURIComponent(originalBase + relativePath), true);
-    };
-}

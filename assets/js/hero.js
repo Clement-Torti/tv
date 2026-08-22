@@ -61,7 +61,7 @@ function pickDifferent(pool, current) {
     // Bounded retries: a pool of duplicates must not spin forever.
     for (let i = 0; i < 10; i++) {
         const pick = random();
-        if (pick.url !== current.url) return pick;
+        if (pick.name !== current.name) return pick;
     }
     return random();
 }

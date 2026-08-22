@@ -46,11 +46,12 @@ function loadMediaOnCast() {
     const session = getCastSession();
     if (!session || !currentChannel) return;
 
-    // The receiver needs HTTPS with CORS headers, so the same proxy applies here.
-    const contentType = isDashStream(currentChannel.url)
-        ? 'application/dash+xml'
-        : 'application/vnd.apple.mpegurl';
-    const mediaInfo = new chrome.cast.media.MediaInfo(toPlayableUrl(currentChannel.url), contentType);
+    // Hand the receiver whichever candidate is known to work.
+    const url = bestUrl(currentChannel);
+    if (!url) { showToast('No playable stream for this channel'); return; }
+
+    const contentType = isDashStream(url) ? 'application/dash+xml' : 'application/vnd.apple.mpegurl';
+    const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
 
     const metadata = new chrome.cast.media.GenericMediaMetadata();
     metadata.title = currentChannel.displayName;

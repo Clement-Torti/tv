@@ -28,9 +28,9 @@ function handleSearch(query) {
     useGridLayout();
 
     const lowerQ = query.toLowerCase();
-    let results = allChannels.filter(c =>
-        c.name.toLowerCase().includes(lowerQ) ||
-        c.displayName.toLowerCase().includes(lowerQ)
+    let results = visibleChannels(allChannels).filter(c =>
+        c.displayName.toLowerCase().includes(lowerQ) ||
+        c.name.toLowerCase().includes(lowerQ)
     );
     if (results.length > LIMITS.searchResults) results = results.slice(0, LIMITS.searchResults);
 
@@ -67,6 +67,13 @@ function updateDropdownMenu(activeName = 'Home') {
         });
     }
 
+    parts.push('<div class="nav-divider"></div>');
+    parts.push(
+        `<div class="nav-item nav-toggle" data-nav="toggle-broken" title="Channels whose every stream fails a live check">` +
+        '<span>Hide broken channels</span>' +
+        `<span class="toggle-pill${hideBroken ? ' on' : ''}"></span>` +
+        '</div>'
+    );
     parts.push('<div class="nav-divider"></div><div class="nav-header">Categories</div>');
     STANDARD_SECTIONS.concat(['Other']).forEach(sec => {
         parts.push(`<div class="nav-item${isActive(sec)}" data-nav="section" data-name="${escapeAttr(sec)}">${escapeHtml(sec)}</div>`);
@@ -74,6 +81,17 @@ function updateDropdownMenu(activeName = 'Home') {
 
     document.getElementById('navDropdownMenu').innerHTML = parts.join('');
     setSectionLabel(activeName === 'Home' ? 'TV' : activeName);
+}
+
+/*
+ * Flipping the filter re-renders the current view: turning it on drops the
+ * channels already known to be broken, turning it off brings them back.
+ */
+function toggleHideBroken() {
+    setHideBroken(!hideBroken);
+    hiddenBrokenCount = 0;
+    showToast(hideBroken ? 'Hiding broken channels' : 'Showing all channels');
+    refreshCurrentView();
 }
 
 function setSectionLabel(label) {
@@ -92,6 +110,11 @@ function initNavigation() {
         if (nav === 'delete') {
             e.stopPropagation();
             deleteSection(id);
+            return;
+        }
+        if (nav === 'toggle-broken') {
+            e.stopPropagation();
+            toggleHideBroken();
             return;
         }
 
@@ -147,20 +170,23 @@ function renderAllSections() {
     updateDropdownMenu('Home');
     useHomeLayout();
 
+    // Favourites stay visible even when broken: the user put them there.
     const favs = allChannels.filter(c => favoriteNames.includes(c.name));
     if (favs.length > 0) renderRow('My Favorites', favs, true);
 
+    const listable = visibleChannels(allChannels);
+
     customSections.forEach(sec => {
-        const secChannels = allChannels.filter(c => sec.channels.includes(c.name));
+        const secChannels = listable.filter(c => sec.channels.includes(c.name));
         if (secChannels.length > 0) renderRow(sec.name, secChannels);
     });
 
     STANDARD_SECTIONS.forEach(section => {
-        const sectionChannels = allChannels.filter(c => channelMatchesSection(c, section));
-        if (sectionChannels.length > 0) renderRow(section, sectionChannels);
+        const sectionChannels = listable.filter(c => channelMatchesSection(c, section));
+        if (sectionChannels.length > 0) renderRow(section, sectionChannels.slice(0, LIMITS.homeRow));
     });
 
-    const otherChannels = allChannels.filter(c => !isCategorised(c));
+    const otherChannels = listable.filter(c => !isCategorised(c));
     if (otherChannels.length > 0) {
         const subset = otherChannels.slice().sort(() => 0.5 - Math.random()).slice(0, LIMITS.discoverRow);
         renderRow('Discover', subset);
@@ -173,11 +199,12 @@ function filterBySection(sectionName) {
     updateDropdownMenu(sectionName);
     useGridLayout();
 
+    const listable = visibleChannels(allChannels);
     let sectionChannels;
     if (sectionName === 'Other') {
-        sectionChannels = allChannels.filter(c => !isCategorised(c)).slice(0, LIMITS.otherSection);
+        sectionChannels = listable.filter(c => !isCategorised(c)).slice(0, LIMITS.otherSection);
     } else {
-        sectionChannels = allChannels.filter(c => channelMatchesSection(c, sectionName));
+        sectionChannels = listable.filter(c => channelMatchesSection(c, sectionName));
     }
 
     if (sectionChannels.length > 0) renderGrid(sectionName, sectionChannels);

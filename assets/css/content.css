@@ -103,3 +103,50 @@
 @media (max-width: 768px) {
     .section-home { margin-top: -80px; }
 }
+
+/* --- Stream health --- */
+
+/* Extra candidate links available for this channel. */
+.badge-backup {
+    font-size: 0.6rem;
+    font-weight: bold;
+    color: #9ad;
+    border: 1px solid rgba(153, 170, 221, 0.5);
+    border-radius: 2px;
+    padding: 1px 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+/* Verified good: a faint confirmation, never a distraction. */
+.card[data-health="ok"] .badge-live { background: #1db954; }
+
+/* Only visible when the "hide broken" filter is off. */
+.card[data-health="dead"] { opacity: 0.35; filter: grayscale(1); }
+.card[data-health="dead"] .badge-live { background: #555; }
+
+.health-chip {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 2500;
+    background: rgba(20, 20, 20, 0.92);
+    border: 1px solid #333;
+    color: #ddd;
+    font-size: 0.8rem;
+    padding: 8px 14px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+}
+.health-chip.show { opacity: 1; transform: translateY(0); }
+.health-chip b { color: white; }
+
+@media (max-width: 768px) {
+    .health-chip { left: 12px; right: 12px; bottom: 12px; justify-content: center; }
+}

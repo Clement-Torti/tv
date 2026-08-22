@@ -252,8 +252,8 @@ function removeCurrentChannel(confirmAction) {
     if (!currentChannel) return;
     if (confirmAction && !confirm('Remove this channel?')) return;
 
-    const removedUrl = currentChannel.url;
-    setChannels(allChannels.filter(c => c.url !== removedUrl));
+    const removedName = currentChannel.name;
+    setChannels(allChannels.filter(c => c.name !== removedName));
     closePlayer();
     refreshCurrentView();
 }

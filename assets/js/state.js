@@ -9,6 +9,10 @@ const channelsById = new Map();
 let favoriteNames = readStore(STORAGE_KEYS.favorites, []);
 let customSections = readStore(STORAGE_KEYS.sections, []);
 
+// Hide channels whose every stream has been checked and failed. On by default:
+// roughly two in five streams in the upstream lists do not play in a browser.
+let hideBroken = localStorage.getItem(STORAGE_KEYS.hideBroken) !== 'false';
+
 // Which view is on screen: home | category | custom | favorites | search | movies | series
 let currentView = 'home';
 let currentSearchQuery = '';
@@ -34,6 +38,17 @@ function saveFavorites() {
 
 function saveCustomSections() {
     localStorage.setItem(STORAGE_KEYS.sections, JSON.stringify(customSections));
+}
+
+function setHideBroken(value) {
+    hideBroken = Boolean(value);
+    localStorage.setItem(STORAGE_KEYS.hideBroken, String(hideBroken));
+}
+
+/* Drops channels already known to be broken, when that filter is on. */
+function visibleChannels(channels) {
+    if (!hideBroken) return channels;
+    return channels.filter(c => channelHealth(c) !== 'dead');
 }
 
 /* Registers the channel list and gives every entry a stable id. */
