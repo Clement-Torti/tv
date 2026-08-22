@@ -66,7 +66,13 @@ const HEALTH = {
     // so a long listing cannot turn into thousands of requests.
     sweepLimit: 400,
     // Delay before the sweep starts, leaving the visible cards to go first.
-    sweepDelayMs: 1200
+    sweepDelayMs: 1200,
+    /*
+     * How long a candidate gets to produce actual video once it has been
+     * attached. A manifest that parses but never yields a frame is broken, and
+     * without this it would simply hang on a black screen for ever.
+     */
+    playbackTimeoutMs: 10000
 };
 
 // Scraped catalogue (Movies / Series) and the read-through proxy used to fetch it.

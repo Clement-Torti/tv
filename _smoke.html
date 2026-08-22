@@ -215,7 +215,12 @@
     <script src="assets/js/catalog.js"></script>
     <script src="assets/js/main.js"></script>
 
-    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
+<script>
+window.__e=[]; addEventListener('error',e=>window.__e.push(e.message));
+addEventListener('unhandledrejection',e=>window.__e.push('rej:'+String(e.reason)));
+const _ce=console.error; console.error=(...a)=>{window.__e.push('cerr:'+a.map(String).join(' ').slice(0,80));};
+setInterval(()=>{document.title=`ch=${allChannels.length} cards=${document.querySelectorAll('#app-content .card[data-channel-id]').length} ok=${document.querySelectorAll('[data-health=ok]').length} hidden=${hiddenBrokenCount} err=${window.__e.length}|${window.__e.slice(0,2).join(';')}`;},1000);
+</script>    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
 </html>

@@ -45,8 +45,10 @@ function playHeroRandom(pool) {
     heroStream = attachStream(video, heroChannel, {
         hlsConfig: { lowLatencyMode: true },
         onFatal: () => {
-            // Dead stream: quietly move on to another channel.
+            // Dead stream: drop it from the listing and quietly move on.
+            const failed = heroChannel;
             if (heroStream) { heroStream.destroy(); heroStream = null; }
+            markChannelBroken(failed);
             if (pool.length < 2 || ++heroFailures > HERO_MAX_FAILURES) return;
             setTimeout(() => playHeroRandom(pool), 1000);
         }

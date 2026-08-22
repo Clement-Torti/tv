@@ -124,6 +124,26 @@ function verifyCard(card) {
     });
 }
 
+/*
+ * Playback just proved a channel does not work, which is better evidence than
+ * any probe. Take it out of the listing so going back does not show it again.
+ */
+function markChannelBroken(channel) {
+    if (!channel) return;
+    if (favoriteNames.includes(channel.name)) return;  // the user chose to keep these
+
+    let removed = 0;
+    document.querySelectorAll(`.card[data-channel-id="${channel.id}"]`).forEach(card => {
+        card.dataset.health = 'dead';
+        if (hideBroken) { removeCardFromView(card); removed++; }
+    });
+
+    if (removed > 0) {
+        hiddenBrokenCount += removed;
+        updateHealthChip();
+    }
+}
+
 function removeCardFromView(card) {
     const row = card.parentElement;
     card.remove();

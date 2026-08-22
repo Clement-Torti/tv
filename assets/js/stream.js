@@ -2,10 +2,15 @@
  * One place for "turn a channel into a playing <video>".
  *
  * A channel carries several candidate URLs (see sources.js). This walks them in
- * order and moves to the next one whenever a stream fails fatally, which is what
+ * order and moves to the next one whenever a candidate fails, which is what
  * makes a channel with backup links far more likely to play than its first URL
  * alone. Every outcome is fed back to health.js, so a failure seen here also
  * removes the channel from the listing.
+ *
+ * A candidate only counts as working once the video element actually decodes
+ * media. `MANIFEST_PARSED` is not enough: a playlist can download cleanly and
+ * then serve segments that 404, and trusting it would cache a broken stream as
+ * good for hours. Nothing at all is emitted in that case, hence the watchdog.
  *
  * There is deliberately no CORS proxy in this path: the public proxies this app
  * used to rely on now answer 403 or hang, so a proxied attempt only burned a
@@ -15,6 +20,7 @@ function attachStream(video, channel, options = {}) {
     const {
         onFatal = () => {},
         onPlaying = () => {},
+        onAttempt = () => {},
         ttmlDiv = null,
         hlsConfig = {}
     } = options;
@@ -24,8 +30,10 @@ function attachStream(video, channel, options = {}) {
     let hls = null;
     let dash = null;
     let destroyed = false;
+    let pending = null;
 
     function teardown() {
+        if (pending) { pending.cancel(); pending = null; }
         if (hls) { hls.destroy(); hls = null; }
         if (dash) { dash.reset(); dash = null; }
     }
@@ -36,31 +44,58 @@ function attachStream(video, channel, options = {}) {
 
         index++;
         if (index >= urls.length) {
+            // Every candidate has now been recorded as broken, so the channel
+            // itself counts as broken.
             onFatal();
             return;
         }
+        onAttempt(urls[index], index + 1, urls.length);
         start(urls[index]);
     }
 
-    function succeeded(url) {
-        if (destroyed) return;
-        reportPlaybackResult(url, true);
-        onPlaying(url);
-    }
+    /*
+     * Waits for the first real sign of playback. `canplay` is used rather than
+     * `playing` because it does not depend on autoplay being permitted: it means
+     * frames were decoded, which is exactly the question being asked.
+     */
+    function watchCandidate(url) {
+        let done = false;
+        const confirm = () => finish(true);
 
-    function failed(url) {
-        if (destroyed) return;
-        reportPlaybackResult(url, false);
-        advance();
+        const detach = () => {
+            clearTimeout(timer);
+            video.removeEventListener('canplay', confirm);
+            video.removeEventListener('playing', confirm);
+        };
+
+        function finish(ok) {
+            if (done || destroyed) return;
+            done = true;
+            detach();
+            reportPlaybackResult(url, ok);
+            if (ok) onPlaying(url);
+            else advance();
+        }
+
+        const timer = setTimeout(() => finish(false), HEALTH.playbackTimeoutMs);
+        video.addEventListener('canplay', confirm);
+        video.addEventListener('playing', confirm);
+
+        return {
+            fail: () => finish(false),
+            cancel: () => { done = true; detach(); }
+        };
     }
 
     function start(url) {
+        pending = watchCandidate(url);
+        const failNow = () => { if (pending) pending.fail(); };
+
         if (isDashStream(url)) {
             dash = dashjs.MediaPlayer().create();
             dash.initialize(video, url, true);
             if (ttmlDiv) dash.attachTTMLRenderingDiv(ttmlDiv);
-            dash.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => succeeded(url));
-            dash.on(dashjs.MediaPlayer.events.ERROR, () => failed(url));
+            dash.on(dashjs.MediaPlayer.events.ERROR, failNow);
             return;
         }
 
@@ -73,12 +108,10 @@ function attachStream(video, channel, options = {}) {
             });
             hls.loadSource(url);
             hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                succeeded(url);
-                video.play().catch(() => {});
-            });
+            // Parsing the manifest only means it is worth waiting for frames.
+            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
             hls.on(Hls.Events.ERROR, (event, data) => {
-                if (data.fatal) failed(url);
+                if (data.fatal) failNow();
             });
             return;
         }
@@ -86,14 +119,7 @@ function attachStream(video, channel, options = {}) {
         // Safari and other browsers with native HLS.
         video.src = url;
         video.play().catch(() => {});
-        const onLoaded = () => { cleanupNative(); succeeded(url); };
-        const onError = () => { cleanupNative(); failed(url); };
-        const cleanupNative = () => {
-            video.removeEventListener('loadedmetadata', onLoaded);
-            video.removeEventListener('error', onError);
-        };
-        video.addEventListener('loadedmetadata', onLoaded, { once: true });
-        video.addEventListener('error', onError, { once: true });
+        video.addEventListener('error', failNow, { once: true });
     }
 
     advance();
@@ -122,7 +148,8 @@ function orderedCandidates(channel) {
     const fresh = urls.filter(url => getVerdict(url) !== 'dead');
     const pool = fresh.length > 0 ? fresh : urls;
 
-    // A URL already proven good goes first.
+    // A URL already proven good goes first; sort is stable, so the source
+    // ranking decides everything else.
     return pool.slice().sort((a, b) => scoreUrl(a) - scoreUrl(b));
 }
 

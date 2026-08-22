@@ -21,10 +21,40 @@
     <link rel="stylesheet" href="assets/css/catalog.css">
 
     <!-- Pinned to a major version: `@latest` would ship breaking releases straight to production. -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dashjs@4/dist/dash.all.min.js"></script>
+    
+    
 </head>
-<body>
+<body><div id="test-output">pending</div>
+<script>
+const FX={"streams": [{"channel": "Multi.us", "feed": null, "title": "Multi TV", "url": "https://a1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Multi.us", "feed": null, "title": "Multi TV", "url": "https://a2.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Multi.us", "feed": null, "title": "Multi TV", "url": "https://a3.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Stall.us", "feed": null, "title": "Stall TV", "url": "https://s1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Doomed.us", "feed": null, "title": "Doomed TV", "url": "https://d1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Doomed.us", "feed": null, "title": "Doomed TV", "url": "https://d2.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Faved.us", "feed": null, "title": "Faved TV", "url": "https://f1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Liar.us", "feed": null, "title": "Liar TV", "url": "https://l1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}], "channels": [{"id": "Multi.us", "name": "Multi TV", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}, {"id": "Stall.us", "name": "Stall TV", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}, {"id": "Doomed.us", "name": "Doomed TV", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}, {"id": "Faved.us", "name": "Faved TV", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}, {"id": "Liar.us", "name": "Liar TV", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}], "logos": [], "blocklist": [], "freetv": ""};
+window.__err=[]; addEventListener('error',e=>window.__err.push('ERR:'+e.message));
+addEventListener('unhandledrejection',e=>window.__err.push('REJ:'+e.reason));
+console.error=(...a)=>{window.__err.push('cerr:'+a.map(String).join(' '));};
+localStorage.clear();
+window.fetch=function(u){ u=String(u);
+  if(u.includes('/api/streams.json'))   return Promise.resolve(jr(FX.streams));
+  if(u.includes('/api/channels.json'))  return Promise.resolve(jr(FX.channels));
+  if(u.includes('/api/logos.json'))     return Promise.resolve(jr(FX.logos));
+  if(u.includes('/api/blocklist.json')) return Promise.resolve(jr(FX.blocklist));
+  if(u.includes('Free-TV'))             return Promise.resolve(tr(FX.freetv));
+  // Every probe succeeds: these streams all serve a clean manifest, so only
+  // playback can reveal that some of them do not actually work.
+  return Promise.resolve(tr('#EXTM3U\n'));
+};
+function jr(o){return{ok:true,status:200,json:()=>Promise.resolve(o),text:()=>Promise.resolve(JSON.stringify(o))};}
+function tr(t){return{ok:true,status:200,text:()=>Promise.resolve(t),json:()=>Promise.resolve(JSON.parse(t))};}
+
+// Controllable hls.js stand-in: the test decides what each attempt does.
+window.__hls=[];
+window.Hls=function(){ const h={}; const inst={
+  url:null, loadSource(u){this.url=u;}, attachMedia(){}, on(e,f){h[e]=f;}, destroy(){this.dead=true;},
+  fire(e,d){ if(h[e]) h[e](e,d); } };
+  window.__hls.push(inst); return inst; };
+window.Hls.isSupported=()=>true;
+window.Hls.Events={MANIFEST_PARSED:'MANIFEST_PARSED',ERROR:'ERROR'};
+window.dashjs={MediaPlayer:()=>({create:()=>({initialize(){},attachTTMLRenderingDiv(){},on(){},reset(){}})})};
+window.dashjs.MediaPlayer.events={ERROR:'e',STREAM_INITIALIZED:'s'};
+</script>
 
     <div id="progress-container">
         <div id="progress-bar"></div>
@@ -215,7 +245,89 @@
     <script src="assets/js/catalog.js"></script>
     <script src="assets/js/main.js"></script>
 
-    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+<script>
+const T=[]; const flush=()=>{document.getElementById('test-output').innerText=T.join('\n');};
+const ok=(l,c,i)=>{T.push((c?'PASS ':'FAIL ')+l+(i!==undefined?' => '+JSON.stringify(i):'')); flush();};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const byName=n=>allChannels.find(c=>c.displayName===n);
+const status=()=>document.getElementById('playerStatus').innerText;
+const canplay=()=>document.getElementById('mainVideo').dispatchEvent(new Event('canplay'));
+const last=()=>window.__hls[window.__hls.length-1];
+
+setTimeout(async()=>{
+ try{
+  ok('channels loaded (5 fixtures + 1 bundled)', allChannels.length===6, allChannels.length);
+
+  // ---- A: fatal error on candidate 1 fails over to candidate 2 ----
+  HEALTH.playbackTimeoutMs = 5000;
+  const multi=byName('Multi TV');
+  window.__hls=[]; openPlayer(multi);
+  ok('A1 first candidate attached', last().url==='https://a1.test/x.m3u8', last().url);
+  ok('A2 status connecting', status()==='Connecting…', status());
+  last().fire('ERROR',{fatal:true});
+  await wait(30);
+  ok('A3 failed over to candidate 2', last().url==='https://a2.test/x.m3u8', last().url);
+  ok('A4 status names the backup', status().includes('backup 2 of 3'), status());
+  ok('A5 candidate 1 marked dead', getVerdict('https://a1.test/x.m3u8')==='dead');
+  canplay(); await wait(30);
+  ok('A6 candidate 2 marked ok', getVerdict('https://a2.test/x.m3u8')==='ok');
+  ok('A7 status cleared once playing', status()==='', status());
+  ok('A8 channel still listed', channelHealth(multi)==='ok');
+  closePlayer();
+
+  // ---- B: manifest parses but no video ever arrives -> watchdog ----
+  HEALTH.playbackTimeoutMs = 250;
+  const stall=byName('Stall TV');
+  delete verdicts['https://s1.test/x.m3u8'];   // prove the watchdog is what judges it
+  ok('B0 verdict cleared', getVerdict('https://s1.test/x.m3u8')===null);
+  window.__hls=[]; openPlayer(stall);
+  last().fire('MANIFEST_PARSED');            // playlist fine...
+  ok('B1 not yet judged', getVerdict('https://s1.test/x.m3u8')===null);
+  await wait(600);                           // ...but no frames
+  ok('B2 stalled stream marked dead', getVerdict('https://s1.test/x.m3u8')==='dead');
+  ok('B3 channel now counts as broken', channelHealth(stall)==='dead');
+  ok('B4 player closed', document.getElementById('videoModal').style.display==='none');
+
+  // ---- C: all candidates exhausted -> card leaves the listing ----
+  HEALTH.playbackTimeoutMs = 200;
+  const doomed=byName('Doomed TV');
+  setHideBroken(true);
+  await new Promise(r=>enqueueVerification(doomed,r));
+  ok('C0 probe says the channel is fine', channelHealth(doomed)==='ok');
+  renderAllSections();
+  const before=document.querySelectorAll(`.card[data-channel-id="${doomed.id}"]`).length;
+  ok('C1 card present before', before>0, before);
+  const hiddenBefore=hiddenBrokenCount;
+  window.__hls=[]; openPlayer(doomed);
+  last().fire('ERROR',{fatal:true}); await wait(30);
+  last().fire('ERROR',{fatal:true}); await wait(400);
+  ok('C2 both candidates dead', [getVerdict('https://d1.test/x.m3u8'),getVerdict('https://d2.test/x.m3u8')], ['dead','dead']);
+  ok('C3 card removed from listing', document.querySelectorAll(`.card[data-channel-id="${doomed.id}"]`).length===0);
+  ok('C4 hidden counter rose', hiddenBrokenCount>hiddenBefore, {hiddenBefore, now:hiddenBrokenCount});
+  ok('C5 dropped from next render', (renderAllSections(), document.querySelectorAll(`.card[data-channel-id="${doomed.id}"]`).length===0));
+
+  // ---- D: a favourite is never silently removed ----
+  const faved=byName('Faved TV');
+  favoriteNames.push(faved.name); saveFavorites();
+  renderAllSections();
+  window.__hls=[]; openPlayer(faved);
+  last().fire('ERROR',{fatal:true}); await wait(400);
+  ok('D1 favourite stream marked dead', getVerdict('https://f1.test/x.m3u8')==='dead');
+  ok('D2 favourite card kept', document.querySelectorAll(`.card[data-channel-id="${faved.id}"]`).length>0,
+     document.querySelectorAll(`.card[data-channel-id="${faved.id}"]`).length);
+
+  // ---- E: probe said ok, playback disagrees -> playback wins ----
+  const liar=byName('Liar TV');
+  await new Promise(r=>enqueueVerification(liar,r));
+  ok('E1 probe accepted the manifest', getVerdict('https://l1.test/x.m3u8')==='ok');
+  window.__hls=[]; openPlayer(liar);
+  last().fire('MANIFEST_PARSED'); await wait(500);
+  ok('E2 playback overrides probe verdict', getVerdict('https://l1.test/x.m3u8')==='dead');
+  ok('E3 channel now broken', channelHealth(liar)==='dead');
+ }catch(e){ T.push('THREW => '+e.message+' | '+(e.stack||'').split('\n')[1]); }
+ T.push('errors => '+JSON.stringify(window.__err)); flush();
+},700);
+</script>    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
+    
 </body>
 </html>

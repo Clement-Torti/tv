@@ -21,10 +21,26 @@
     <link rel="stylesheet" href="assets/css/catalog.css">
 
     <!-- Pinned to a major version: `@latest` would ship breaking releases straight to production. -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dashjs@4/dist/dash.all.min.js"></script>
+    
+    
 </head>
-<body>
+<body><script>
+const FX={"streams": [{"channel": "Demo.us", "feed": null, "title": "Demo Channel", "url": "https://c1.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Demo.us", "feed": null, "title": "Demo Channel", "url": "https://c2.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}, {"channel": "Demo.us", "feed": null, "title": "Demo Channel", "url": "https://c3.test/x.m3u8", "quality": "720p", "label": null, "user_agent": null, "referrer": null}], "channels": [{"id": "Demo.us", "name": "Demo Channel", "categories": ["news"], "is_nsfw": false, "closed": null, "replaced_by": null}], "logos": [], "blocklist": [], "freetv": ""}; localStorage.clear();
+window.fetch=u=>{u=String(u);
+ if(u.includes('/api/streams.json'))return Promise.resolve(jr(FX.streams));
+ if(u.includes('/api/channels.json'))return Promise.resolve(jr(FX.channels));
+ if(u.includes('/api/logos.json'))return Promise.resolve(jr(FX.logos));
+ if(u.includes('/api/blocklist.json'))return Promise.resolve(jr(FX.blocklist));
+ if(u.includes('Free-TV'))return Promise.resolve(tr(''));
+ return Promise.resolve(tr('#EXTM3U\n'));};
+function jr(o){return{ok:true,status:200,json:()=>Promise.resolve(o),text:()=>Promise.resolve(JSON.stringify(o))};}
+function tr(t){return{ok:true,status:200,text:()=>Promise.resolve(t),json:()=>Promise.resolve('')};}
+window.__hls=[];
+window.Hls=function(){const h={};const i={url:null,loadSource(u){this.url=u;},attachMedia(){},on(e,f){h[e]=f;},destroy(){},fire(e,d){h[e]&&h[e](e,d);}};window.__hls.push(i);return i;};
+window.Hls.isSupported=()=>true; window.Hls.Events={MANIFEST_PARSED:'MANIFEST_PARSED',ERROR:'ERROR'};
+window.dashjs={MediaPlayer:()=>({create:()=>({initialize(){},attachTTMLRenderingDiv(){},on(){},reset(){}})})};
+window.dashjs.MediaPlayer.events={ERROR:'e',STREAM_INITIALIZED:'s'};
+</script>
 
     <div id="progress-container">
         <div id="progress-bar"></div>
@@ -215,7 +231,14 @@
     <script src="assets/js/catalog.js"></script>
     <script src="assets/js/main.js"></script>
 
-    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+<script>
+setTimeout(()=>{ HEALTH.playbackTimeoutMs=60000;
+  openPlayer(allChannels.find(c=>c.displayName==='Demo Channel'));
+  const l=()=>window.__hls[window.__hls.length-1];
+  l().fire('ERROR',{fatal:true});
+  setTimeout(()=>{ document.getElementById('playerOverlay').classList.add('show-mobile'); }, 100);
+}, 800);
+</script>    <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->
+    
 </body>
 </html>

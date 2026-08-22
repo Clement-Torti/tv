@@ -40,11 +40,28 @@ function openPlayer(channel) {
 
     playerStream = attachStream(video, channel, {
         ttmlDiv: document.getElementById('ttml-rendering-div'),
+        onAttempt: (url, attempt, total) => {
+            setPlayerStatus(attempt === 1
+                ? 'Connecting…'
+                : `Stream failed — trying backup ${attempt} of ${total}…`);
+        },
+        onPlaying: () => setPlayerStatus(''),
         onFatal: () => {
+            setPlayerStatus('');
+            // Nothing this channel offers works, so stop offering it.
+            markChannelBroken(channel);
             showToast(`Stream unavailable: ${channel.displayName}`);
             closePlayer();
         }
     });
+}
+
+/* A one-line note under the player title, used while failing over. */
+function setPlayerStatus(message) {
+    const el = document.getElementById('playerStatus');
+    if (!el) return;
+    el.innerText = message || '';
+    el.classList.toggle('show', Boolean(message));
 }
 
 function closePlayer() {
@@ -55,6 +72,7 @@ function closePlayer() {
 
     if (playerStream) { playerStream.destroy(); playerStream = null; }
 
+    setPlayerStatus('');
     document.getElementById('videoModal').style.display = 'none';
     document.getElementById('playerCarousel').classList.remove('open');
     document.getElementById('carouselToggleIcon').className = 'fas fa-chevron-up';
