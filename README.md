@@ -59,7 +59,7 @@ Pages from running the files through Jekyll.
 ## Channel sources
 
 Four endpoints are merged at load time (~2.9 MB gzipped, all sending
-`Access-Control-Allow-Origin: *`), producing **12,030 channels** with **17,217
+`Access-Control-Allow-Origin: *`), producing **12,576 channels** with **18,162
 candidate stream URLs**:
 
 | Source | Role |
@@ -98,19 +98,29 @@ removes roughly 180 broken channels. The "Hide broken channels" toggle in the TV
 menu turns the filter off.
 
 Some exclusions need no network check at all: blocklisted, upstream-`closed` and
-NSFW channels, protocols a browser cannot open (`rtmp`, `rtsp`, `srt`), and
-streams that only work with a custom `User-Agent` or `Referer` — headers a page
-is not allowed to set.
+NSFW channels, and protocols a browser cannot open (`rtmp`, `rtsp`, `srt`).
+
+Streams carrying a `user_agent` are deliberately **not** excluded. Nearly all of
+them just ask for an ordinary browser User-Agent, which the browser already
+sends — the field is there for VLC and ffmpeg users. An earlier version dropped
+them and lost 628 working channels, BFM Alsace among them.
 
 ## Notes
 
 - Favourites and custom sections live in `localStorage`, keyed by the channel id
   (or its name, for streams the API has not matched to one).
-- **There is no CORS proxy in the playback path.** The public proxies this app
-  relied on are gone: `corsproxy.io` answers 403 and `api.allorigins.win` accepts
-  the connection then never responds. A proxied attempt only burned a timeout, so
-  playback now falls back to the next candidate URL instead. The Movies/Series
-  catalogue still points at `api.allorigins.win` and is therefore **currently
-  broken** — it needs a working proxy before it will load again.
+- **There is no CORS proxy in the playback path**, and re-adding one would not
+  help. Measured from a real browser: `corsproxy.io` answers 403 on every request,
+  and `api.allorigins.win` succeeds only intermittently (1 of 3 attempts) taking
+  6–25 seconds per request. Live HLS needs a fresh segment every few seconds, so
+  a proxy that slow cannot sustain playback even when it does answer. Playback
+  falls back to the next candidate URL instead.
+- A consequence worth knowing: **`http://` streams are effectively unusable on the
+  deployed site.** The page is HTTPS and sets `upgrade-insecure-requests`, so the
+  browser rewrites them to `https://`, and the bare-IP hosts these links point at
+  do not serve HTTPS. They are ranked last for this reason. Tools like VLC have no
+  such restriction, which is why a link can work there and not here.
+- The Movies/Series catalogue still goes through `api.allorigins.win`, so it
+  inherits that unreliability and may fail to load.
 - The CDN players (`hls.js`, `dashjs`) are pinned to a major version. Bump them
   deliberately — `@latest` used to ship breaking releases straight to production.

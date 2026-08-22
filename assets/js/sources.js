@@ -57,7 +57,8 @@ function mergeSources({ streams, channels, logos, blocklist, freetv }) {
             url: stream.url,
             label: stream.label,
             quality: stream.quality,
-            needsHeaders: Boolean(stream.user_agent || stream.referrer),
+            userAgent: stream.user_agent,
+            referrer: stream.referrer,
             penalty: 0
         }, meta, logoByChannel, blocked);
     }
@@ -71,7 +72,8 @@ function mergeSources({ streams, channels, logos, blocklist, freetv }) {
             url: entry.url,
             label: null,
             quality: null,
-            needsHeaders: Boolean(entry.userAgent || entry.referrer),
+            userAgent: entry.userAgent,
+            referrer: entry.referrer,
             penalty: 1,
             fallbackLogo: entry.logo,
             fallbackGroup: entry.group
@@ -92,17 +94,21 @@ function mergeSources({ streams, channels, logos, blocklist, freetv }) {
 
 /*
  * Rules applied here are the ones that can be decided without touching the
- * network. They remove channels that could never play in this app:
+ * network. They remove only what could never play in this app:
  *  - DMCA/NSFW blocklisted, or flagged closed upstream
  *  - protocols no browser can open (rtmp, rtsp, srt, mmsh)
- *  - streams that only work with a custom User-Agent or Referer, which a page
- *    is not allowed to set on an XHR
+ *
+ * Note what is deliberately *not* excluded: streams carrying a `user_agent`.
+ * Almost all of those simply ask for a normal browser User-Agent, which the
+ * browser already sends -- the field exists for VLC and ffmpeg users, who would
+ * otherwise be turned away. Dropping them removed 628 working channels
+ * (BFM Alsace among them). Header hints only adjust ranking now; the health
+ * probe has the last word on whether a stream really plays.
  */
 function addCandidate(merged, candidate, meta, logoByChannel, blocked) {
     const { channelId, title, url } = candidate;
 
     if (!url || !/^https?:\/\//i.test(url)) return;
-    if (candidate.needsHeaders) return;
     if (channelId && blocked.has(channelId)) return;
 
     const info = channelId ? meta.get(channelId) : null;
@@ -131,8 +137,13 @@ function addCandidate(merged, candidate, meta, logoByChannel, blocked) {
 }
 
 /* Lower ranks are tried first. */
-function rankCandidate({ url, label, quality, penalty }) {
+function rankCandidate({ url, label, quality, penalty, userAgent, referrer }) {
     let rank = penalty || 0;
+
+    // A browser User-Agent costs nothing; anything else (VLC, curl, WINK) is a
+    // hint the origin may refuse a browser, so try those later.
+    if (userAgent && !/^Mozilla\//i.test(userAgent)) rank += 3;
+    if (referrer) rank += 1;
 
     // The page is HTTPS, so an http:// link only works if the browser's
     // upgrade-insecure-requests rewrite happens to land on a working host.
