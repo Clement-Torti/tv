@@ -1,0 +1,32 @@
+/* Design tokens, reset and global chrome (progress bar, toast). */
+
+:root {
+    --primary: #e50914;
+    --dark: #141414;
+    --gray: #808080;
+    --modal-bg: #1f1f1f;
+    --skeleton-base: #1f1f1f;
+    --skeleton-highlight: #333;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+
+body {
+    background-color: var(--dark);
+    color: white;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    overflow-x: hidden;
+}
+
+/* --- Progress Bar --- */
+#progress-container {
+    position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+    z-index: 2000; background: transparent; pointer-events: none; transition: opacity 0.5s;
+}
+#progress-bar {
+    height: 100%; background: var(--primary); width: 0%;
+    transition: width 0.3s ease; box-shadow: 0 0 10px var(--primary);
+}
+
+/* --- Toast --- */
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.9); color: white; padding: 10px 20px; border-radius: 4px; z-index: 5000; font-weight: bold; display: none; width: max-content; max-width: 90%; text-align: center; }

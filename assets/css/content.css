@@ -1,0 +1,105 @@
+/* Skeleton loader, sections, rows, grids and channel cards. */
+
+/* --- SKELETON --- */
+#skeleton-loader { position: absolute; top: 0; left: 0; width: 100%; min-height: 100vh; background: var(--dark); z-index: 50; overflow: hidden; }
+.skeleton-hero { width: 100%; height: 90vh; position: relative; margin-bottom: -100px; display: flex; flex-direction: column; justify-content: center; padding-left: 4%; }
+.shimmer { background: #222; background-image: linear-gradient(to right, var(--skeleton-base) 0%, var(--skeleton-highlight) 20%, var(--skeleton-base) 40%, var(--skeleton-base) 100%); background-repeat: no-repeat; background-size: 800px 100%; animation: shimmer 1.5s linear infinite forwards; }
+@keyframes shimmer { 0% { background-position: -800px 0; } 100% { background-position: 800px 0; } }
+.sk-text { border-radius: 4px; margin-bottom: 15px; opacity: 0.7; }
+.sk-title { width: 40%; height: 60px; margin-bottom: 20px; }
+.sk-desc { width: 30%; height: 20px; margin-bottom: 10px; }
+.sk-desc-2 { width: 25%; height: 20px; margin-bottom: 30px; }
+.sk-btn { width: 120px; height: 45px; display: inline-block; margin-right: 10px; border-radius: 4px;}
+.sk-section { padding: 20px 4% 0 4%; margin-bottom: 30px; z-index: 60; position: relative;}
+.sk-header { width: 150px; height: 20px; margin-bottom: 15px; border-radius: 4px; opacity: 0.5; }
+.sk-row { display: flex; gap: 10px; overflow: hidden; }
+.sk-card { width: 230px; height: 130px; border-radius: 4px; flex-shrink: 0; opacity: 0.6; }
+
+/* --- Content Areas --- */
+.section-home { padding: 0 0 40px 0; position: relative; z-index: 10; margin-top: -225px; min-height: 500px; }
+.section-grid { padding: 80px 4% 40px 4%; position: relative; z-index: 10; margin-top: 0; min-height: 100vh; }
+.section-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 10px; color: #e5e5e5; margin-top: 3vw; display: flex; align-items: center; gap: 10px; padding-left: 4%; }
+.section-home > .section-title:first-child { margin-top: 0; }
+.section-grid > .section-title { padding-left: 0; margin-top: 0; margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #333; padding-bottom: 10px;}
+
+.row-container { position: relative; width: 100%; }
+
+.row {
+    display: flex; overflow-x: auto; gap: 8px; 
+    padding: 40px 4% 40px 4%; 
+    margin-top: -30px; margin-bottom: -20px; 
+    scrollbar-width: none; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+.row::-webkit-scrollbar { display: none; }
+
+.grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; width: 100%; }
+.scroll-btn { position: absolute; top: 0; bottom: 30px; width: 40px; background: rgba(0,0,0,0.5); color: white; border: none; z-index: 20; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
+.row-container:hover .scroll-btn { opacity: 1; }
+.scroll-btn.left { left: 0; border-top-right-radius: 4px; border-bottom-right-radius: 4px;}
+.scroll-btn.right { right: 0; border-top-left-radius: 4px; border-bottom-left-radius: 4px;}
+
+.card {
+    flex: 0 0 auto; width: 230px; height: 130px; 
+    background: #222; border-radius: 4px;
+    position: relative; cursor: pointer; 
+    transition: transform 0.2s ease-in-out; 
+    overflow: hidden;
+}
+.grid-container .card { width: 100%; height: auto; aspect-ratio: 16/9; }
+
+@media(hover: hover) {
+    .card:hover { 
+        transform: scale(1.3); 
+        z-index: 100; 
+        box-shadow: 0 0 15px rgba(0,0,0,0.9); 
+    }
+    .card img { transition: 0.2s; opacity: 1; }
+    .card:hover img { opacity: 0.4; }
+    .card-info { opacity: 0; transition: 0.2s; }
+    .card:hover .card-info { opacity: 1; }
+}
+
+.card img { width: 100%; height: 100%; object-fit: cover; background: transparent; position: relative; z-index: 1; }
+
+.card-fallback-title {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 90%; text-align: center;
+    font-size: 1.2rem; font-weight: 800; color: rgba(255,255,255,0.8);
+    text-transform: uppercase;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    z-index: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.card-info {
+    position: absolute; bottom: 0; left: 0; right: 0; top: 0; display: flex; flex-direction: column;
+    justify-content: flex-end; padding: 10px; 
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+    z-index: 10;
+}
+.card-actions { display: flex; gap: 8px; margin-bottom: 5px; }
+.action-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; background: rgba(42, 42, 42, 0.6); color: white; }
+.action-btn:hover { border-color: white; background: white; color: black; }
+.badge-live { background: #e50914; color: white; font-size: 0.6rem; padding: 2px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; font-weight: bold;}
+.channel-name { font-size: 0.85rem; font-weight: bold; color: white; vertical-align: middle; text-shadow: 1px 1px 2px black; }
+
+@media(hover: none) {
+    .scroll-btn { display: none !important; }
+    .card { width: 160px; height: 90px; }
+    .card-info { opacity: 1; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 80%); }
+    .card img { opacity: 1; padding: 0; }
+    .card-actions { display: none; }
+    .grid-container { gap: 10px; }
+    .sk-card { width: 160px; height: 90px; }
+    .sk-title { width: 70%; height: 40px; }
+    .row { padding: 0 4% 30px 4%; margin-top: 0; margin-bottom: 0; } 
+}
+
+
+/* The hero shrinks to 60vh below 768px, so the overlap of the first row has to
+   shrink with it. Keyed on width, not `hover`, so a narrow desktop window with a
+   mouse gets the same layout as a phone. */
+@media (max-width: 768px) {
+    .section-home { margin-top: -80px; }
+}
