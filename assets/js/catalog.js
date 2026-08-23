@@ -136,12 +136,27 @@ function buildCatalogUrl(catalog, state) {
 
 async function fetchCatalogDocument(targetUrl) {
     const response = await fetch(CATALOG_PROXY + encodeURIComponent(targetUrl));
-    if (!response.ok) throw new Error('Proxy error');
+    if (!response.ok) throw new Error(`Proxy responded ${response.status}`);
 
-    const data = await response.json();
-    if (!data.contents) throw new Error('No data');
+    const body = await response.text();
+    if (!body) throw new Error('Empty response');
 
-    return new DOMParser().parseFromString(data.contents, 'text/html');
+    return new DOMParser().parseFromString(unwrapProxyBody(body), 'text/html');
+}
+
+/*
+ * Proxies disagree on what they return: the Worker passes the page through
+ * untouched, while allorigins-style services wrap it in {"contents": "..."}.
+ * Accepting both means swapping CATALOG_PROXY is a one-line change.
+ */
+function unwrapProxyBody(body) {
+    if (!body.trimStart().startsWith('{')) return body;
+    try {
+        const parsed = JSON.parse(body);
+        return typeof parsed.contents === 'string' ? parsed.contents : body;
+    } catch (e) {
+        return body;
+    }
 }
 
 /* The source markup varies, so try the known containers before falling back

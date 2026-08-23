@@ -116,8 +116,11 @@ them and lost 628 working channels, BFM Alsace among them.
   only intermittently (1 of 3 attempts) at 6–25 seconds per request. Live HLS
   needs a fresh segment every few seconds, so a proxy that slow cannot sustain
   playback even when it does answer. See the section below for what does work.
-- The Movies/Series catalogue still goes through `api.allorigins.win`, so it
-  inherits that unreliability and may fail to load.
+- The Movies/Series catalogue goes through the same Worker. It used
+  `api.allorigins.win`, which now fails every request — the "Failed to fetch"
+  that section used to show was that proxy, not a dead source. `fetchCatalogDocument`
+  accepts either a raw body or an allorigins-style `{"contents": ...}` wrapper, so
+  swapping `CATALOG_PROXY` again is a one-line change.
 - The CDN players (`hls.js`, `dashjs`) are pinned to a major version. Bump them
   deliberately — `@latest` used to ship breaking releases straight to production.
 

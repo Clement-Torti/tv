@@ -91,7 +91,9 @@ const HEALTH = {
 
 // Scraped catalogue (Movies / Series) and the read-through proxy used to fetch it.
 const CATALOG_BASE_URL = 'https://pelispedia.mov';
-const CATALOG_PROXY = 'https://api.allorigins.win/get?url=';
+// Reuses the same Worker as the streams (worker/stream-proxy.js). The public
+// proxy this used before, api.allorigins.win, now fails every request.
+const CATALOG_PROXY = 'https://tv-stream-proxy.clement-torti.workers.dev/?url=';
 
 // localStorage keys.
 const STORAGE_KEYS = {
