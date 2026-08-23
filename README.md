@@ -34,6 +34,8 @@ assets/
     catalog.js        Movies and Series (one shared scraper)
     main.js           Bootstrap and global listeners
   img/                favicon, logo, bundled channel logo
+worker/
+  stream-proxy.js     Optional Cloudflare Worker: HTTPS front for http streams
 extension/            Chrome extension adding a TV link to netflix.com
 ```
 
@@ -109,18 +111,67 @@ them and lost 628 working channels, BFM Alsace among them.
 
 - Favourites and custom sections live in `localStorage`, keyed by the channel id
   (or its name, for streams the API has not matched to one).
-- **There is no CORS proxy in the playback path**, and re-adding one would not
-  help. Measured from a real browser: `corsproxy.io` answers 403 on every request,
-  and `api.allorigins.win` succeeds only intermittently (1 of 3 attempts) taking
-  6–25 seconds per request. Live HLS needs a fresh segment every few seconds, so
-  a proxy that slow cannot sustain playback even when it does answer. Playback
-  falls back to the next candidate URL instead.
-- A consequence worth knowing: **`http://` streams are effectively unusable on the
-  deployed site.** The page is HTTPS and sets `upgrade-insecure-requests`, so the
-  browser rewrites them to `https://`, and the bare-IP hosts these links point at
-  do not serve HTTPS. They are ranked last for this reason. Tools like VLC have no
-  such restriction, which is why a link can work there and not here.
+- **Public CORS proxies are not usable for this.** Measured from a real browser:
+  `corsproxy.io` answers 403 on every request, and `api.allorigins.win` succeeds
+  only intermittently (1 of 3 attempts) at 6–25 seconds per request. Live HLS
+  needs a fresh segment every few seconds, so a proxy that slow cannot sustain
+  playback even when it does answer. See the section below for what does work.
 - The Movies/Series catalogue still goes through `api.allorigins.win`, so it
   inherits that unreliability and may fail to load.
 - The CDN players (`hls.js`, `dashjs`) are pinned to a major version. Bump them
   deliberately — `@latest` used to ship breaking releases straight to production.
+
+## Plain-HTTP streams and the optional proxy
+
+About **1,796 channels (14%) are http-only**, and roughly half of them are still
+broadcasting. On the deployed HTTPS site none of them can play, and this is a
+browser rule rather than an app choice. Measured on an HTTPS page:
+
+| Page | Result fetching an `http://` stream |
+| --- | --- |
+| With `upgrade-insecure-requests` | `TypeError` after 370 ms — upgraded to `https://`, which the host does not speak |
+| Without it | `TypeError` after **2 ms** — blocked as mixed content, never leaves the browser |
+| Same stream from an HTTP page | `200 OK`, valid manifest |
+
+So the stream is alive; only the transport is impossible. Removing the CSP meta
+makes it worse, not better. An HTTPS hop is the only way, which is what
+`worker/stream-proxy.js` provides.
+
+**How much it actually recovers: about 440 channels**, not the ~980 a count of
+live http streams suggests. Measured through the deployed Worker over a 45-channel
+sample: 19 were alive when fetched directly, but only 11 also worked through the
+proxy — the other 8 answered `403`. Many of these bare-IP restream hosts refuse
+datacenter address ranges, so they serve a home connection and reject Cloudflare.
+That is a property of those hosts, not something the Worker can fix.
+
+Forwarding the playlist is not sufficient on its own: an HLS manifest points at
+segments, audio tracks, subtitles and keys by relative or absolute URL, so every
+URL inside it has to be rewritten to come back through the proxy. The Worker does
+that; measured through it, a full segment arrives in 400–800 ms.
+
+### Setting it up
+
+```sh
+npm install -g wrangler
+wrangler login
+wrangler deploy worker/stream-proxy.js --name tv-stream-proxy --compatibility-date 2024-01-01
+```
+
+Add your site to `ALLOWED_ORIGINS` in the Worker (without it, anyone could use it
+as an open proxy on your quota), then put the deployed URL in `assets/js/config.js`:
+
+```js
+const STREAM_PROXY = 'https://tv-stream-proxy.<your-subdomain>.workers.dev/?url=';
+```
+
+Leaving it empty keeps the proxy off. Cloudflare's free tier allows 100,000
+requests/day — on the order of 50–150 hours of viewing.
+
+A Worker is only reachable from an origin listed in `ALLOWED_ORIGINS`; anything
+else gets a `403`. If a request fails with `Upstream responded 403`, that is the
+*stream host* refusing Cloudflare, not the allowlist.
+
+Only `http://` URLs are routed through it; HTTPS streams always go direct, since a
+needless hop would add latency and burn quota. Health verdicts stay keyed by the
+channel's real URL, and cached verdicts for http streams are discarded whenever
+the proxy setting changes, because the answer genuinely differs.

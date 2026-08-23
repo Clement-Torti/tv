@@ -47,3 +47,17 @@ function hasLogo(channel) {
 function isDashStream(url) {
     return String(url).indexOf('.mpd') > -1;
 }
+
+/*
+ * Routes a plain-HTTP stream through the configured HTTPS proxy. HTTPS streams
+ * are always left untouched: they work directly and a needless hop would only
+ * add latency and burn proxy quota.
+ */
+function playableUrl(url) {
+    if (!STREAM_PROXY || !url.startsWith('http://')) return url;
+    return STREAM_PROXY + encodeURIComponent(url);
+}
+
+function isProxied(url) {
+    return Boolean(STREAM_PROXY) && url.startsWith('http://');
+}

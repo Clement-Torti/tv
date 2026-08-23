@@ -51,7 +51,7 @@ function loadMediaOnCast() {
     if (!url) { showToast('No playable stream for this channel'); return; }
 
     const contentType = isDashStream(url) ? 'application/dash+xml' : 'application/vnd.apple.mpegurl';
-    const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
+    const mediaInfo = new chrome.cast.media.MediaInfo(playableUrl(url), contentType);
 
     const metadata = new chrome.cast.media.GenericMediaMetadata();
     metadata.title = currentChannel.displayName;

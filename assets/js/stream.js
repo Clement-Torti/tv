@@ -16,6 +16,9 @@
  * used to rely on now answer 403 or hang, so a proxied attempt only burned a
  * timeout that a direct attempt on the next candidate could spend usefully.
  */
+// Any of these means real media reached the element; see watchCandidate below.
+const CONFIRMING_EVENTS = ['loadeddata', 'canplay', 'playing'];
+
 function attachStream(video, channel, options = {}) {
     const {
         onFatal = () => {},
@@ -54,9 +57,15 @@ function attachStream(video, channel, options = {}) {
     }
 
     /*
-     * Waits for the first real sign of playback. `canplay` is used rather than
-     * `playing` because it does not depend on autoplay being permitted: it means
-     * frames were decoded, which is exactly the question being asked.
+     * Waits for the first real sign of playback.
+     *
+     * Several signals are accepted because no single one is dependable. `playing`
+     * needs autoplay to be permitted; `canplay` needs enough buffered data to
+     * start, which some live streams take a long time to reach even while
+     * decoding correctly. `loadeddata` (a first frame exists) and hls.js's
+     * FRAG_LOADED (a media segment actually arrived) are earlier and just as
+     * conclusive. What is *not* accepted is MANIFEST_PARSED: a playlist can
+     * download perfectly and then serve nothing but 404s.
      */
     function watchCandidate(url) {
         let done = false;
@@ -64,8 +73,7 @@ function attachStream(video, channel, options = {}) {
 
         const detach = () => {
             clearTimeout(timer);
-            video.removeEventListener('canplay', confirm);
-            video.removeEventListener('playing', confirm);
+            for (const ev of CONFIRMING_EVENTS) video.removeEventListener(ev, confirm);
         };
 
         function finish(ok) {
@@ -78,22 +86,29 @@ function attachStream(video, channel, options = {}) {
         }
 
         const timer = setTimeout(() => finish(false), HEALTH.playbackTimeoutMs);
-        video.addEventListener('canplay', confirm);
-        video.addEventListener('playing', confirm);
+        for (const ev of CONFIRMING_EVENTS) video.addEventListener(ev, confirm);
 
         return {
+            confirm: () => finish(true),
             fail: () => finish(false),
             cancel: () => { done = true; detach(); }
         };
     }
 
     function start(url) {
-        pending = watchCandidate(url);
-        const failNow = () => { if (pending) pending.fail(); };
+        // Bound to this attempt: `pending` moves on when a candidate is dropped,
+        // so a late event from a torn-down player must not settle the new one.
+        const watcher = watchCandidate(url);
+        pending = watcher;
+        const failNow = () => watcher.fail();
+
+        // Verdicts stay keyed by the channel's real URL; only the request goes
+        // through the proxy, and only when the URL is plain HTTP.
+        const src = playableUrl(url);
 
         if (isDashStream(url)) {
             dash = dashjs.MediaPlayer().create();
-            dash.initialize(video, url, true);
+            dash.initialize(video, src, true);
             if (ttmlDiv) dash.attachTTMLRenderingDiv(ttmlDiv);
             dash.on(dashjs.MediaPlayer.events.ERROR, failNow);
             return;
@@ -106,10 +121,12 @@ function attachStream(video, channel, options = {}) {
                 fragLoadingTimeOut: 12000,
                 ...hlsConfig
             });
-            hls.loadSource(url);
+            hls.loadSource(src);
             hls.attachMedia(video);
             // Parsing the manifest only means it is worth waiting for frames.
             hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+            // A segment that actually arrived proves the stream carries media.
+            hls.on(Hls.Events.FRAG_LOADED, () => watcher.confirm());
             hls.on(Hls.Events.ERROR, (event, data) => {
                 if (data.fatal) failNow();
             });
@@ -117,7 +134,7 @@ function attachStream(video, channel, options = {}) {
         }
 
         // Safari and other browsers with native HLS.
-        video.src = url;
+        video.src = src;
         video.play().catch(() => {});
         video.addEventListener('error', failNow, { once: true });
     }

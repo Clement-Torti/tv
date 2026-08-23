@@ -26,6 +26,20 @@ const SOURCES = {
 };
 
 /*
+ * Optional HTTPS front for plain-HTTP streams (see worker/stream-proxy.js).
+ *
+ * Leave empty to disable. A browser cannot load an http:// stream from this
+ * HTTPS page at all -- it is either blocked as mixed content or upgraded to a
+ * https:// the origin does not speak -- so without a proxy those channels are
+ * unreachable. About 1,800 channels are http-only and roughly half still
+ * broadcast, so configuring this recovers close to a thousand of them.
+ *
+ * Must end with the query parameter, e.g.
+ *   'https://tv-stream-proxy.<your-subdomain>.workers.dev/?url='
+ */
+const STREAM_PROXY = 'https://tv-stream-proxy.clement-torti.workers.dev/?url=';
+
+/*
  * Sections shown on the home page. These match the iptv-org category slugs
  * (lower-cased when compared), so no translation table is needed.
  */

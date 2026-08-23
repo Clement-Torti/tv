@@ -18,7 +18,17 @@ let saveTimer = null;
 function loadVerdicts() {
     try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.verdicts));
-        return raw && typeof raw === 'object' ? raw : {};
+        if (!raw || typeof raw !== 'object') return {};
+
+        // Turning the proxy on or off changes the answer for every http://
+        // stream, so those cached verdicts can no longer be trusted.
+        if (raw.__proxy !== (STREAM_PROXY || '')) {
+            for (const url of Object.keys(raw)) {
+                if (url.startsWith('http://')) delete raw[url];
+            }
+        }
+        delete raw.__proxy;
+        return raw;
     } catch (e) {
         console.warn('Corrupt stream-health cache, starting fresh.', e);
         return {};
@@ -47,7 +57,9 @@ function saveVerdicts() {
     }
 
     try {
-        localStorage.setItem(STORAGE_KEYS.verdicts, JSON.stringify(verdicts));
+        // __proxy is stored alongside, never kept in the in-memory map.
+        localStorage.setItem(STORAGE_KEYS.verdicts,
+            JSON.stringify({ ...verdicts, __proxy: STREAM_PROXY || '' }));
     } catch (e) {
         // Out of quota: the cache is an optimisation, so drop it and carry on.
         console.warn('Could not persist stream health cache.', e);
@@ -104,7 +116,7 @@ async function probeUrl(url, timeoutMs = HEALTH.timeoutMs) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(playableUrl(url), { signal: controller.signal, cache: 'no-store' });
         if (!response.ok) return false;
 
         const body = (await response.text()).trimStart();

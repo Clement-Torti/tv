@@ -1,0 +1,10 @@
+# Cloudflare Worker that fronts plain-HTTP streams over HTTPS.
+# See worker/stream-proxy.js for what it does and why it is needed.
+#
+# Deploy with:  npx wrangler deploy
+name = "tv-stream-proxy"
+main = "worker/stream-proxy.js"
+compatibility_date = "2024-01-01"
+
+# Serves the Worker at https://tv-stream-proxy.<your-subdomain>.workers.dev
+workers_dev = true

@@ -145,9 +145,12 @@ function rankCandidate({ url, label, quality, penalty, userAgent, referrer }) {
     if (userAgent && !/^Mozilla\//i.test(userAgent)) rank += 3;
     if (referrer) rank += 1;
 
-    // The page is HTTPS, so an http:// link only works if the browser's
-    // upgrade-insecure-requests rewrite happens to land on a working host.
-    if (url.startsWith('http://')) rank += 8;
+    /*
+     * On an HTTPS page a plain-HTTP link is unreachable unless STREAM_PROXY is
+     * configured. Without one it is a last resort; with one it costs only an
+     * extra hop, so it drops back to a mild preference for direct HTTPS.
+     */
+    if (url.startsWith('http://')) rank += STREAM_PROXY ? 2 : 8;
 
     const flags = label || '';
     if (flags.includes('Geo-blocked')) rank += 4;  // measured 23% playable
