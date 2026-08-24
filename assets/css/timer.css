@@ -1,0 +1,53 @@
+/* Watch-session stopwatch: a compact pill in the navbar, floated over the player. */
+
+.watch-timer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 10px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    font-variant-numeric: tabular-nums;
+}
+
+.watch-timer-time {
+    color: #e5e5e5;
+    font-size: 14px;
+    min-width: 44px;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+/* Only the digits change colour while running, so the pill stays discreet. */
+.watch-timer.running .watch-timer-time { color: #fff; }
+
+.watch-timer-btn {
+    background: transparent;
+    border: none;
+    color: #b3b3b3;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+}
+.watch-timer-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.15); }
+.watch-timer.running .watch-timer-btn.watch-timer-toggle { color: var(--primary); }
+
+/*
+ * The player is a full-screen modal above the navbar, so the pill is re-anchored
+ * over it while watching -- that is the whole point of the counter.
+ */
+.watch-timer.floating {
+    position: fixed;
+    top: 14px;
+    right: 4%;
+    z-index: 3500;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 768px) {
+    .watch-timer { padding: 2px 4px 2px 8px; gap: 4px; }
+    .watch-timer-time { font-size: 13px; min-width: 40px; }
+    .watch-timer.floating { top: 8px; right: 3%; }
+}

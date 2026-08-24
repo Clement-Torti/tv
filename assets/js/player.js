@@ -11,6 +11,7 @@ function openPlayer(channel) {
 
     document.getElementById('playerTitle').innerText = channel.displayName;
     document.getElementById('videoModal').style.display = 'flex';
+    setWatchTimerFloating(true);
 
     // Mute the hero so its audio never overlaps the player.
     document.getElementById('hero-video-bg').muted = true;
@@ -74,6 +75,7 @@ function closePlayer() {
 
     setPlayerStatus('');
     document.getElementById('videoModal').style.display = 'none';
+    setWatchTimerFloating(false);
     document.getElementById('playerCarousel').classList.remove('open');
     document.getElementById('carouselToggleIcon').className = 'fas fa-chevron-up';
     if (document.fullscreenElement) document.exitFullscreen();

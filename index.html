@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="assets/css/content.css">
     <link rel="stylesheet" href="assets/css/player.css">
     <link rel="stylesheet" href="assets/css/catalog.css">
+    <link rel="stylesheet" href="assets/css/timer.css">
 
     <!-- Pinned to a major version: `@latest` would ship breaking releases straight to production. -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
@@ -54,6 +55,16 @@
         </div>
 
         <div class="secondary-navigation">
+            <!-- Watch-session stopwatch (see timer.js). -->
+            <div class="watch-timer" id="watchTimer">
+                <span class="watch-timer-time" id="watchTimerTime">00:00</span>
+                <button class="watch-timer-btn watch-timer-toggle" onclick="toggleWatchTimer()" title="Start timer" aria-label="Start timer">
+                    <i class="fas fa-play" id="watchTimerIcon"></i>
+                </button>
+                <button class="watch-timer-btn" onclick="resetWatchTimer()" title="Reset timer" aria-label="Reset timer">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </div>
             <div class="search-box" id="searchBox">
                 <button class="search-icon-btn" onclick="toggleSearchBox()" aria-label="Search">
                     <i class="fas fa-search"></i>
@@ -213,6 +224,7 @@
     <script src="assets/js/player.js"></script>
     <script src="assets/js/chromecast.js"></script>
     <script src="assets/js/catalog.js"></script>
+    <script src="assets/js/timer.js"></script>
     <script src="assets/js/main.js"></script>
 
     <!-- Must load after chromecast.js, which defines __onGCastApiAvailable. -->

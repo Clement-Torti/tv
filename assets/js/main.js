@@ -40,6 +40,7 @@ function init() {
     initContentInteractions();
     initPlayerAutoHide();
     initGlobalListeners();
+    initWatchTimer();
     loadChannelList();
 }
 

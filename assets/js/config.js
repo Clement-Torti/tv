@@ -100,7 +100,8 @@ const STORAGE_KEYS = {
     favorites: 'clement_favorites',
     sections: 'clement_custom_sections',
     verdicts: 'clement_stream_health',
-    hideBroken: 'clement_hide_broken'
+    hideBroken: 'clement_hide_broken',
+    watchTimer: 'clement_watch_timer'
 };
 
 // Caps that keep very large listings from freezing the page.
