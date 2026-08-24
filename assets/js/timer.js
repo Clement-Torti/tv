@@ -14,6 +14,15 @@ let watchTicker = null;
 function initWatchTimer() {
     const stored = Number(localStorage.getItem(STORAGE_KEYS.watchTimer));
     watchAccumulatedMs = Number.isFinite(stored) && stored > 0 ? stored : 0;
+
+    const pill = document.getElementById('watchTimer');
+    if (pill) watchTimerHome = { parent: pill.parentNode, nextSibling: pill.nextSibling };
+
+    // Driven by the event rather than by toggleFullscreen(), so Esc and the
+    // browser's own fullscreen controls are covered too.
+    document.addEventListener('fullscreenchange', syncWatchTimerHost);
+    document.addEventListener('webkitfullscreenchange', syncWatchTimerHost);
+
     renderWatchTimer();
 }
 
@@ -92,7 +101,47 @@ function renderWatchTimer() {
 /* Lifts the pill above the player modal, which otherwise covers the navbar. */
 function setWatchTimerFloating(floating) {
     const pill = document.getElementById('watchTimer');
-    if (pill) pill.classList.toggle('floating', Boolean(floating));
+    if (!pill) return;
+    // Hosted inside a fullscreen element it has nothing else to anchor to, so
+    // stay floating regardless -- closePlayer() unfloats before exitFullscreen()
+    // has fired, and dropping it there would flash the pill mid-layout.
+    const pinned = Boolean(fullscreenElement() && fullscreenElement().contains(pill));
+    pill.classList.toggle('floating', Boolean(floating) || pinned);
+}
+
+function fullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+/*
+ * Re-parents the pill on the way in and out of fullscreen.
+ *
+ * A fullscreen element paints only itself and its descendants, so the pill has
+ * to physically move inside it -- `position: fixed` and a high z-index are not
+ * enough while it still hangs off the navbar. `watchTimerHome` remembers the
+ * exact slot to put it back into.
+ */
+let watchTimerHome = null;
+
+function syncWatchTimerHost() {
+    const pill = document.getElementById('watchTimer');
+    if (!pill) return;
+
+    const target = fullscreenElement();
+    if (target) {
+        if (!target.contains(pill)) {
+            // `.floating` positions it against the fullscreen viewport just as
+            // it does against the window, so the pill lands top-right either way.
+            setWatchTimerFloating(true);
+            target.appendChild(pill);
+        }
+        return;
+    }
+
+    if (watchTimerHome && pill.parentNode !== watchTimerHome.parent) {
+        watchTimerHome.parent.insertBefore(pill, watchTimerHome.nextSibling);
+        setWatchTimerFloating(isPlayerOpen());
+    }
 }
 
 /* Banking the elapsed time on the way out keeps a refresh from losing it. */

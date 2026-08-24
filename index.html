@@ -56,12 +56,14 @@
 
         <div class="secondary-navigation">
             <!-- Watch-session stopwatch (see timer.js). -->
-            <div class="watch-timer" id="watchTimer">
+            <!-- stopPropagation: inside the player the pill sits on the wrapper,
+                 whose click handler would otherwise toggle the controls. -->
+            <div class="watch-timer" id="watchTimer" onclick="event.stopPropagation()">
                 <span class="watch-timer-time" id="watchTimerTime">00:00</span>
-                <button class="watch-timer-btn watch-timer-toggle" onclick="toggleWatchTimer()" title="Start timer" aria-label="Start timer">
+                <button class="watch-timer-btn watch-timer-toggle" onclick="event.stopPropagation(); toggleWatchTimer()" title="Start timer" aria-label="Start timer">
                     <i class="fas fa-play" id="watchTimerIcon"></i>
                 </button>
-                <button class="watch-timer-btn" onclick="resetWatchTimer()" title="Reset timer" aria-label="Reset timer">
+                <button class="watch-timer-btn" onclick="event.stopPropagation(); resetWatchTimer()" title="Reset timer" aria-label="Reset timer">
                     <i class="fas fa-undo"></i>
                 </button>
             </div>
