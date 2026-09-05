@@ -100,8 +100,30 @@ properties of that feed shape the implementation:
   already.
 - **It carries the 15 most recent uploads and nothing else** — no paging, no
   `max-results`. "Latest videos" is therefore all this can ever show, which is
-  exactly what the row is for. `YOUTUBE.perChannel` trims it further before the
-  merge so one prolific channel cannot crowd out the rest.
+  exactly what the row is for.
+
+### Why the row is not sorted by date
+
+Sorting the pooled videos newest-first is the obvious merge and it is wrong: it
+hands the whole row to whichever channel uploads most often. Measured on the real
+feeds, Sky News publishes **one video every 1.2 hours** while MKBHD publishes one
+every **120 hours** — a hundredfold spread. Every Sky News entry is therefore
+newer than anything the slower channels have, so a date sort puts six of them in
+the first six slots and pushes the channels you follow for their videos off the
+end of the row.
+
+So `interleaveByChannel` deals the videos out in rounds, one per channel, sorting
+only *within* a round. Each channel is guaranteed its newest upload in round one,
+its second in round two, and so on, whatever its upload rate:
+
+```
+by date        Sky, Sky, Sky, Sky, Sky, Sky, Linus, MKBHD
+interleaved    Sky, Fireship, MKBHD, Linus, Sky, Fireship, Linus, MKBHD
+```
+
+The row still opens with the newest video overall, because round one holds every
+channel's latest. With a single channel followed it degenerates to plain
+newest-first, which is correct.
 
 ### Adding a channel
 

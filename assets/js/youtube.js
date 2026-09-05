@@ -231,6 +231,40 @@ async function fetchAllFeeds(channels, options) {
 
 /* --- The home row --------------------------------------------------------- */
 
+const byNewest = (a, b) => new Date(b.published) - new Date(a.published);
+
+/*
+ * Merges the channels into one row without letting the busiest one own it.
+ *
+ * Sorting the pooled videos by date alone does not work: a channel that uploads
+ * every hour has its whole slice timestamped within the last few hours, so it
+ * takes every slot at the front and a channel that posts weekly is pushed off
+ * the end of the row entirely -- the opposite of what following it meant.
+ *
+ * So videos are dealt out in rounds, one per channel, and only sorted *within* a
+ * round. Every channel is guaranteed its newest upload in the first round, its
+ * second in the next, and so on, whatever its upload rate. The row still opens
+ * with the newest video overall, because round one holds every channel's latest.
+ */
+function interleaveByChannel(videos) {
+    const queues = new Map();
+    for (const video of videos) {
+        if (!queues.has(video.channelId)) queues.set(video.channelId, []);
+        queues.get(video.channelId).push(video);
+    }
+
+    const pending = Array.from(queues.values());
+    pending.forEach(queue => queue.sort(byNewest));
+
+    const merged = [];
+    while (pending.some(queue => queue.length > 0)) {
+        const round = pending.filter(queue => queue.length > 0).map(queue => queue.shift());
+        round.sort(byNewest);
+        merged.push(...round);
+    }
+    return merged;
+}
+
 function relativeTime(iso) {
     const then = new Date(iso).getTime();
     if (!Number.isFinite(then)) return '';
@@ -261,6 +295,7 @@ function createVideoCardHtml(video) {
         <img src="${escapeAttr(video.thumb)}" onerror="this.style.display='none'" loading="lazy"
              alt="${escapeAttr(video.title)}">
         ${video.isShort ? '<span class="yt-short-badge">SHORT</span>' : ''}
+        <div class="yt-play"><i class="fas fa-play"></i></div>
         <div class="card-info">
             <div class="yt-title">${escapeHtml(video.title)}</div>
             <div class="yt-meta">
@@ -314,8 +349,7 @@ async function fillYouTubeRow(token, rowId, options) {
     if (!row || !row.isConnected) return;
 
     if (hideShorts) videos = videos.filter(v => !v.isShort);
-    videos.sort((a, b) => new Date(b.published) - new Date(a.published));
-    videos = videos.slice(0, LIMITS.youtubeRow);
+    videos = interleaveByChannel(videos).slice(0, LIMITS.youtubeRow);
 
     videos.forEach(v => ytVideosById.set(v.id, v));
 
