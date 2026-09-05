@@ -87,9 +87,10 @@
 
 /* --- Embedded player ---
  *
- * The chrome itself is player.css's: .video-modal, .player-overlay, .player-top,
- * .control-btn and .player-carousel are all reused as-is. Only what an iframe
- * needs that a <video> does not lives here.
+ * The chrome is player.css's: .video-modal, .player-overlay, .player-top,
+ * .control-btn and .player-carousel are reused as-is. YouTube's own control bar
+ * is left switched on, because the audio-track selector lives in it, so this
+ * overlay only carries navigation and must stay out of that bar's way.
  */
 
 /* The API replaces #ytFrame with an iframe, so both need to fill the wrapper. */
@@ -100,44 +101,34 @@
     z-index: 0;
 }
 
-/* Above the iframe: a positioned sibling alone is not enough to beat one. */
 #ytWrapper .player-overlay { z-index: 10; }
 #ytWrapper .player-status { z-index: 15; }
 
-/* Two stacked rows (scrub bar, then controls) where the TV player has one. */
-.yt-player-bottom {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-}
-.yt-controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+/*
+ * Click-through is the whole point here.
+ *
+ * player.css turns pointer-events on for the entire overlay while the wrapper is
+ * hovered, which over an iframe would swallow every click meant for YouTube's
+ * controls -- including the settings menu holding the audio track. So the
+ * overlay itself never takes pointer events; only its own controls do.
+ */
+#ytOverlay, #ytWrapper:hover #ytOverlay { pointer-events: none; }
+#ytOverlay .player-top,
+#ytOverlay .back-btn,
+#ytOverlay .yt-top-actions,
+#ytOverlay .control-btn,
+#ytCarousel { pointer-events: auto; }
 
-.yt-progress-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0 10px; }
-.yt-time {
-    font-size: 0.78rem; font-variant-numeric: tabular-nums; color: #ddd;
-    text-shadow: 0 1px 3px #000; min-width: 42px; text-align: center;
+/* Only the top is scrimmed: YouTube paints its own gradient along the bottom,
+   and a second one over it just muddies its controls. */
+#ytOverlay {
+    background: linear-gradient(to bottom,
+        rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 10%, transparent 28%);
+    justify-content: flex-start;
 }
 
-/* Filled portion is painted with a gradient driven by --yt-progress, set from
-   the timer -- an <input type=range> has no cross-browser "elapsed" pseudo. */
-.yt-progress {
-    -webkit-appearance: none; appearance: none;
-    flex: 1; height: 5px; border-radius: 3px; cursor: pointer;
-    background: linear-gradient(to right,
-        var(--primary) 0%, var(--primary) var(--yt-progress, 0%),
-        rgba(255,255,255,0.3) var(--yt-progress, 0%), rgba(255,255,255,0.3) 100%);
-}
-.yt-progress::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 13px; height: 13px; border-radius: 50%;
-    background: var(--primary); cursor: pointer;
-    transition: transform 0.1s;
-}
-.yt-progress::-webkit-slider-thumb:hover { transform: scale(1.25); }
-.yt-progress::-moz-range-thumb {
-    width: 13px; height: 13px; border: none; border-radius: 50%;
-    background: var(--primary); cursor: pointer;
-}
+.yt-top-actions { display: flex; align-items: center; gap: 6px; }
+.yt-top-actions .control-btn { font-size: 1.15rem; padding: 8px; }
 
 /* Captions are on by default, so the button ships lit. Videos published without
    any caption track dim it instead, rather than claiming Arabic is on. */
@@ -148,27 +139,9 @@
     height: 2px; background: #555; transform: rotate(-20deg);
 }
 
-/*
- * The scrub bar made .player-bottom two rows tall, so the carousel's 90px
- * clearance from player.css is no longer enough -- it sat on top of the times.
- */
-#ytCarousel { bottom: 138px; }
-
-/*
- * A heavier scrim than the TV player's.
- *
- * YouTube paints its own title, channel avatar and "more videos" strip inside
- * the iframe whenever the video is paused or seeking, and no embed parameter
- * suppresses them any more (`showinfo` was removed in 2018, `modestbranding` in
- * 2024). They sit below our overlay, so darkening the top and bottom bands is
- * what keeps them from showing through -- and it makes our own controls read
- * better over bright footage anyway.
- */
-#ytOverlay {
-    background: linear-gradient(to bottom,
-        rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 8%, transparent 26%,
-        transparent 62%, rgba(0,0,0,0.8) 82%, rgba(0,0,0,0.95) 100%);
-}
+/* Clears YouTube's control bar (~48px, plus its progress bar and padding), so
+   opening "up next" never covers the settings button. Closed by default. */
+#ytCarousel { bottom: 86px; }
 
 /* The carousel holds video thumbnails here, not channel logos, so they fill
    the card instead of being letterboxed inside it. */
@@ -218,11 +191,8 @@
 .yt-toggle:hover { text-decoration: none; }
 
 @media (max-width: 768px) {
-    .yt-progress-row { gap: 8px; padding: 0; }
-    .yt-time { font-size: 0.7rem; min-width: 36px; }
-    .yt-controls-row { flex-wrap: wrap; justify-content: center; gap: 8px; }
-    .yt-player-bottom { gap: 8px; }
-    #ytCarousel { bottom: 150px; }
+    .yt-top-actions .control-btn { font-size: 1rem; padding: 6px; }
+    #ytCarousel { bottom: 74px; }
     .yt-card { width: 248px; height: 140px; }
     .yt-row-message { height: 140px; }
     .yt-title { font-size: 0.82rem; }

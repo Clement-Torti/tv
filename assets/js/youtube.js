@@ -388,10 +388,7 @@ function refreshYouTubeRow() {
 let ytPlayer = null;
 let ytApiPromise = null;
 let ytCurrentVideo = null;
-let ytProgressTimer = null;
 let ytCaptionsOn = true;
-let ytLastVolume = 1;
-let ytMouseTimer = null;
 let ytCaptionTimer = null;
 
 /* Loads the IFrame API once, on first play, rather than on every page load. */
@@ -420,13 +417,13 @@ async function openYouTubeVideo(videoId) {
     setWatchTimerFloating(true);
     setYouTubeStatus('Loading…');
 
+    hintArabicAudio();
+
     // A new video brings its own caption tracks; clear the previous verdict.
     clearTimeout(ytCaptionTimer);
     document.getElementById('ytCcBtn').classList.remove('unavailable');
     document.getElementById('ytCcBtn').classList.toggle('active', ytCaptionsOn);
     renderYouTubeCarousel();
-    document.getElementById('ytCarousel').classList.add('open');
-    document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-down';
 
     // The site player and this one must never sound at once.
     document.getElementById('hero-video-bg').muted = true;
@@ -443,17 +440,28 @@ async function openYouTubeVideo(videoId) {
 
     ytPlayer = new YT.Player('ytFrame', {
         videoId,
+        /*
+         * The default host (www.youtube.com) is used deliberately rather than
+         * youtube-nocookie.com: signed-in cookies travel with it, and a YouTube
+         * account whose language is Arabic is the one thing that makes a dub
+         * come up on its own.
+         */
         playerVars: {
             autoplay: 1,
-            controls: 0,        // our overlay is the only control surface
+            /*
+             * Left ON. The audio-track selector lives in YouTube's own settings
+             * menu, and there is no other route to it: `setAudioTrack` exists on
+             * YouTube's internal player, but the IFrame API's postMessage bridge
+             * does not accept it from a cross-origin parent -- measured, the
+             * track stays put. Switching these off took the Arabic dub away.
+             */
+            controls: 1,
             rel: 0,
-            modestbranding: 1,
             playsinline: 1,
             iv_load_policy: 3,  // no annotation cards over the picture
             cc_load_policy: 1,  // captions on from the first frame
             cc_lang_pref: YOUTUBE.captionLang,
-            // Arabic UI, and the strongest signal available that this viewer
-            // wants the Arabic audio track where the uploader published one.
+            // Arabic UI, so the settings menu and its track names are readable.
             hl: YOUTUBE.captionLang,
             origin: window.location.origin
         },
@@ -467,22 +475,15 @@ async function openYouTubeVideo(videoId) {
 
 function onYouTubePlayerReady(e) {
     e.target.playVideo();
-    syncYouTubeVolumeUi(e.target.getVolume() / 100);
     scheduleArabicCaptions();
 }
 
 function onYouTubePlayerState(e) {
     const YT = window.YT;
-    const playing = e.data === YT.PlayerState.PLAYING;
-    updateYouTubeIcons(!playing);
-
-    if (playing) {
+    if (e.data === YT.PlayerState.PLAYING) {
         setYouTubeStatus('');
-        startYouTubeProgress();
         // A newly loaded video brings its own caption tracks with it.
         scheduleArabicCaptions();
-    } else {
-        stopYouTubeProgress();
     }
     if (e.data === YT.PlayerState.ENDED) playNextYouTubeVideo();
 }
@@ -591,19 +592,16 @@ function toggleArabicCaptions() {
     }
 }
 
-/* --- Controls --- */
+/* --- Controls ---
+ *
+ * YouTube's bar owns volume, speed, quality, captions and fullscreen now, so
+ * only what the keyboard shortcuts need is kept here. These API calls keep
+ * working with `controls: 1`; `setAudioTrack` is the only one that does not.
+ */
 function toggleYouTubePlay() {
     if (!ytPlayer || !ytPlayer.getPlayerState) return;
-    const playing = ytPlayer.getPlayerState() === window.YT.PlayerState.PLAYING;
-    if (playing) ytPlayer.pauseVideo();
+    if (ytPlayer.getPlayerState() === window.YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
     else ytPlayer.playVideo();
-    updateYouTubeIcons(playing);
-}
-
-function updateYouTubeIcons(isPaused) {
-    const icon = isPaused ? 'fas fa-play' : 'fas fa-pause';
-    document.getElementById('ytCenterIcon').className = icon;
-    document.getElementById('ytBottomIcon').className = icon;
 }
 
 function seekYouTubeBy(seconds) {
@@ -612,98 +610,10 @@ function seekYouTubeBy(seconds) {
     showToast(`${seconds > 0 ? '+' : ''}${seconds}s`);
 }
 
-function seekYouTubeToPercent(value) {
-    if (!ytPlayer || !ytPlayer.getDuration) return;
-    const duration = ytPlayer.getDuration();
-    if (duration > 0) ytPlayer.seekTo((Number(value) / 1000) * duration, true);
-}
-
-function adjustYouTubeSpeed(delta) {
-    if (!ytPlayer || !ytPlayer.getPlaybackRate) return;
-    /*
-     * Unlike a <video>, YouTube only accepts rates from a fixed list, so the
-     * request is snapped to the nearest one it offers.
-     */
-    const rates = ytPlayer.getAvailablePlaybackRates() || [1];
-    const target = ytPlayer.getPlaybackRate() + delta;
-    const nearest = rates.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
-    ytPlayer.setPlaybackRate(nearest);
-    document.getElementById('ytSpeedDisplay').innerText = nearest.toFixed(2) + 'x';
-}
-
-function handleYouTubeVolume(value) {
-    if (!ytPlayer || !ytPlayer.setVolume) return;
-    const volume = parseFloat(value);
-    ytPlayer.setVolume(volume * 100);
-    if (volume === 0) ytPlayer.mute(); else ytPlayer.unMute();
-    updateYouTubeVolumeIcon(volume);
-}
-
-function toggleYouTubeMute() {
-    const slider = document.getElementById('ytVolumeSlider');
-    const current = parseFloat(slider.value);
-
-    if (current > 0) {
-        ytLastVolume = current;
-        slider.value = 0;
-        handleYouTubeVolume(0);
-    } else {
-        const target = ytLastVolume > 0 ? ytLastVolume : 0.5;
-        slider.value = target;
-        handleYouTubeVolume(target);
-    }
-}
-
-function syncYouTubeVolumeUi(volume) {
-    document.getElementById('ytVolumeSlider').value = volume;
-    updateYouTubeVolumeIcon(volume);
-}
-
-function updateYouTubeVolumeIcon(volume) {
-    const icon = document.getElementById('ytVolumeIcon');
-    if (volume === 0) icon.className = 'fas fa-volume-mute';
-    else if (volume < 0.5) icon.className = 'fas fa-volume-down';
-    else icon.className = 'fas fa-volume-up';
-}
-
 function toggleYouTubeFullscreen() {
     const wrapper = document.getElementById('ytWrapper');
     if (document.fullscreenElement) document.exitFullscreen();
     else wrapper.requestFullscreen();
-}
-
-/* --- Progress --- */
-function formatClock(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-    const total = Math.floor(seconds);
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    return h > 0
-        ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        : `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function startYouTubeProgress() {
-    stopYouTubeProgress();
-    ytProgressTimer = setInterval(() => {
-        if (!ytPlayer || !ytPlayer.getDuration) return;
-        const duration = ytPlayer.getDuration();
-        const elapsed = ytPlayer.getCurrentTime();
-        if (!duration) return;
-
-        const slider = document.getElementById('ytProgress');
-        // Leave the slider alone while it is being dragged.
-        if (document.activeElement !== slider) slider.value = (elapsed / duration) * 1000;
-        slider.style.setProperty('--yt-progress', `${(elapsed / duration) * 100}%`);
-        document.getElementById('ytElapsed').innerText = formatClock(elapsed);
-        document.getElementById('ytDuration').innerText = formatClock(duration);
-    }, 500);
-}
-
-function stopYouTubeProgress() {
-    clearInterval(ytProgressTimer);
-    ytProgressTimer = null;
 }
 
 /* --- "Up next" carousel, mirroring the favourites carousel in the TV player --- */
@@ -713,12 +623,12 @@ function toggleYouTubeCarousel() {
 
     if (carousel.classList.contains('open')) {
         carousel.classList.remove('open');
-        icon.className = 'fas fa-chevron-up';
+        icon.className = 'fas fa-chevron-down';
         return;
     }
     renderYouTubeCarousel();
     carousel.classList.add('open');
-    icon.className = 'fas fa-chevron-down';
+    icon.className = 'fas fa-chevron-up';
 }
 
 function renderYouTubeCarousel() {
@@ -766,14 +676,13 @@ function closeYouTubeModal(e) {
 
     // stopVideo, not just hiding the modal: a hidden iframe keeps playing audio.
     if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
-    stopYouTubeProgress();
     clearTimeout(ytCaptionTimer);
 
     setYouTubeStatus('');
     document.getElementById('youtubeModal').style.display = 'none';
     setWatchTimerFloating(false);
     document.getElementById('ytCarousel').classList.remove('open');
-    document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-up';
+    document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-down';
     ytCurrentVideo = null;
     if (document.fullscreenElement) document.exitFullscreen();
 }
@@ -791,30 +700,21 @@ function setYouTubeStatus(message) {
     el.classList.toggle('show', Boolean(message));
 }
 
-/* Mirrors togglePlayerControls: on desktop the overlay is hover-driven. */
-function toggleYouTubeControls() {
-    const overlay = document.getElementById('ytOverlay');
-    if (window.innerWidth > 768) return;
-    overlay.classList.toggle('show-mobile');
-}
-
-function initYouTubePlayerAutoHide() {
-    document.getElementById('ytWrapper').addEventListener('mousemove', () => {
-        if (window.innerWidth <= 768) return;
-
-        const wrapper = document.getElementById('ytWrapper');
-        const overlay = document.getElementById('ytOverlay');
-        wrapper.style.cursor = 'default';
-        overlay.style.opacity = '1';
-
-        clearTimeout(ytMouseTimer);
-        ytMouseTimer = setTimeout(() => {
-            if (!ytPlayer || !ytPlayer.getPlayerState) return;
-            if (ytPlayer.getPlayerState() !== window.YT.PlayerState.PLAYING) return;
-            overlay.style.opacity = '0';
-            wrapper.style.cursor = 'none';
-        }, 2000);
-    });
+/*
+ * Points the viewer at the audio-track menu, once per session.
+ *
+ * Nothing here can switch the dub, so the one useful thing to do is say where
+ * the control is. Shown once so it does not nag on every video.
+ */
+let ytAudioHintShown = false;
+function hintArabicAudio() {
+    if (ytAudioHintShown) return;
+    ytAudioHintShown = true;
+    setTimeout(() => {
+        if (!isYouTubeModalOpen()) return;
+        setYouTubeStatus('For Arabic audio: YouTube\u2019s \u2699 menu \u2192 Audio track \u2192 العربية');
+        setTimeout(() => setYouTubeStatus(''), 7000);
+    }, 3500);
 }
 
 /* --- Profile modal -------------------------------------------------------- */

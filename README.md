@@ -164,28 +164,28 @@ the **IFrame Player API** and wrapped in the live-TV player's own chrome, so the
 two players match: `.video-modal`, `.player-overlay`, `.player-top`,
 `.control-btn` and `.player-carousel` are all reused from `player.css`.
 
-YouTube's own controls are switched off (`controls: 0`) precisely so there is
-only ever one set of controls on screen. That means this page owns the keyboard
-too — space, `f`, `c` and the arrow keys route to the YouTube player exactly as
-they do to the TV one.
+YouTube's **own control bar is left on**, because the audio-track selector lives
+in it (see below). So the split is: YouTube owns playback — volume, speed,
+quality, captions, fullscreen, audio track — and this overlay owns navigation:
+back, title, an Arabic-subtitle button, the "up next" carousel and a link out.
+
+That split has one consequence worth knowing about. `player.css` switches
+`pointer-events` on for the *whole* overlay while the wrapper is hovered, which
+over an iframe would swallow every click meant for YouTube's controls. So
+`#ytOverlay` never takes pointer events; only its own buttons do.
+
+Keyboard shortcuts still run through the IFrame API — space, `f`, `c` and the
+arrows behave as they do in the TV player, since every API method except
+`setAudioTrack` keeps working with `controls: 1`.
 
 `player.js` itself is **not** reused, because every one of its controls talks to
-a `<video>` element. The two differences from the TV player are deliberate:
+a `<video>` element. The carousel differs too: it lists the **other videos in the
+row** rather than favourite channels, and a finished video rolls on to the next.
 
-- A **scrub bar**, which the TV player has no use for because live streams
-  cannot seek.
-- The carousel lists the **other videos in the row** rather than favourite
-  channels, and a finished video rolls on to the next one.
+### The scrim
 
-### What the scrim is for
-
-YouTube paints its own title, channel avatar and "more videos" strip inside the
-iframe whenever the video is paused or seeking, and **no embed parameter
-suppresses them any more** — `showinfo` was removed in 2018 and `modestbranding`
-in 2024. They render below our overlay, so `#ytOverlay` carries a heavier scrim
-than the TV player's to keep them from showing through. During steady playback
-nothing of YouTube's own chrome is visible; while paused, a little remains
-faintly behind the control bar.
+`#ytOverlay` is scrimmed along the **top only**. YouTube paints its own gradient
+along the bottom, and a second one over it just muddies its controls.
 
 ## Arabic subtitles and dubbed audio
 
@@ -216,22 +216,39 @@ player reports ready, so a single attempt usually finds an empty tracklist.
 videos genuinely ship no captions at all; those dim the CC button rather than
 leaving it lit as though Arabic were on.
 
-### Dubbed audio: not reachable from an embed
+### Dubbed audio: YouTube's own menu, deliberately
 
-**The IFrame Player API exposes no audio-track control at all.** Enumerating a
-live player instance returns 72 methods and not one of them touches audio tracks
-(`getAvailableAudioTracks`, `setAudioTrack` and friends are simply absent). So an
-Arabic dub cannot be selected, and cannot even be *read back*, from any embed —
-this is a limit of YouTube's API, not something the code is missing.
+Arabic dubs are reached through **YouTube's own control bar** (⚙ → Audio track →
+العربية). That is why `controls: 1` is set and this overlay carries navigation
+only, leaving the bottom of the frame clear. An earlier revision hid YouTube's
+controls for a tidier look and took the audio track away with them; that was the
+wrong trade.
 
-What is set instead is `hl: 'ar'`, which makes the player's interface Arabic and
-is the only language signal an embed can send; YouTube uses the viewer's language
-preference when choosing a default audio track, so a dub may well be picked up
-where the uploader published one. That could not be confirmed from here either,
-since nothing in the API reports which audio track is playing.
+The reason there is no in-house audio button is not effort. Measured against a
+live player:
 
-Where a video has an Arabic dub and it does not come up by itself, the reliable
-route is the **YouTube button** in the control bar (settings → Audio track).
+| Route | Result |
+| --- | --- |
+| `getAvailableAudioTracks()` inside the frame | lists every dub, Arabic included (`ar.3`) |
+| `setAudioTrack(track)` inside the frame | **works** — audio switches to العربية |
+| Same call via the IFrame API postMessage bridge | **ignored** — track stays put |
+| `hl=ar` + `Accept-Language: ar-SA`, signed out | **no effect** — default stayed `en.4`, "English: original" |
+
+So the method exists but is not on the API's whitelist, and only same-origin code
+inside the iframe may call it. A static page cannot, and no amount of embed
+parameters substitutes for it.
+
+Two things still tilt the odds, and both are set:
+
+- **`hl: 'ar'`** — the settings menu and every track name render in Arabic.
+- **The default host, `www.youtube.com`, not `youtube-nocookie.com`.** Signed-in
+  cookies travel with it, and a YouTube account whose language is Arabic is the
+  one lever that makes a dub come up on its own. Setting the *account* language
+  (youtube.com → settings → Language) is worth doing; setting only the browser's
+  language is not, as the table above shows.
+
+The player shows a one-time hint pointing at the audio-track menu, and the
+YouTube button in the top bar opens the video on youtube.com.
 
 ## Why streams get hidden
 

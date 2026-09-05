@@ -166,65 +166,32 @@
     </div>
 
     <!-- YouTube player.
-         Reuses the live-TV player's chrome (.video-modal, .player-overlay,
-         .control-btn, .player-carousel) so both players look and behave alike.
-         Playback is driven through the IFrame Player API: YouTube serves no
-         manifest hls.js or dashjs could attach to. YouTube's own controls are
-         switched off, so this overlay is the only control surface on screen. -->
+         YouTube's OWN controls are deliberately left on (`controls: 1`): the
+         audio-track selector (settings -> Audio track) lives in them, and it is
+         the only way to reach an Arabic dub. `setAudioTrack` exists on YouTube's
+         internal player but is not exposed on the IFrame API's postMessage
+         bridge, so a cross-origin page like this one cannot call it -- verified.
+         This overlay therefore carries navigation only (back, title, subtitles,
+         up next) and leaves the bottom of the frame clear for YouTube's bar. -->
     <div class="video-modal" id="youtubeModal">
-        <div class="video-wrapper" id="ytWrapper" onclick="toggleYouTubeControls()">
+        <div class="video-wrapper" id="ytWrapper">
             <!-- Replaced in place by the API with the player iframe. -->
             <div id="ytFrame"></div>
-            <!-- Outside .player-overlay on purpose: an embedding refusal must
-                 stay visible while the controls are hidden. -->
             <div class="player-status" id="ytStatus"></div>
-            <div class="player-overlay" id="ytOverlay" onclick="event.stopPropagation(); toggleYouTubeControls()">
-                <div class="player-top" onclick="event.stopPropagation()">
-                    <div class="back-btn" onclick="closeYouTubeModal()"><i class="fas fa-arrow-left"></i></div>
+            <div class="player-overlay" id="ytOverlay">
+                <div class="player-top">
+                    <div class="back-btn" onclick="closeYouTubeModal()" title="Back"><i class="fas fa-arrow-left"></i></div>
                     <div class="player-title" id="ytPlayerTitle">YouTube</div>
-                    <div style="width: 40px;"></div>
+                    <div class="yt-top-actions">
+                        <!-- Re-asserts Arabic: YouTube's own CC button turns on
+                             whatever language it defaults to, not necessarily ours. -->
+                        <button class="control-btn active" id="ytCcBtn" onclick="toggleArabicCaptions()" data-tooltip="Arabic subtitles"><i class="fas fa-closed-captioning"></i></button>
+                        <button class="control-btn" onclick="toggleYouTubeCarousel()" data-tooltip="Up next"><i class="fas fa-chevron-down" id="ytCarouselIcon"></i></button>
+                        <a class="control-btn" id="ytExternalLink" href="#" target="_blank" rel="noopener" data-tooltip="Open on YouTube"><i class="fab fa-youtube"></i></a>
+                    </div>
                 </div>
-                <div class="player-center">
-                    <div class="big-play-btn" onclick="event.stopPropagation(); toggleYouTubePlay()"><i class="fas fa-pause" id="ytCenterIcon"></i></div>
-                </div>
-                <div id="ytCarousel" class="player-carousel" onclick="event.stopPropagation()">
+                <div id="ytCarousel" class="player-carousel">
                     <div class="carousel-track" id="ytCarouselList"></div>
-                </div>
-                <div class="player-bottom yt-player-bottom" onclick="event.stopPropagation()">
-                    <!-- The TV player has no scrub bar because live streams need
-                         none; these are VOD, so they do. -->
-                    <div class="yt-progress-row">
-                        <span class="yt-time" id="ytElapsed">0:00</span>
-                        <input type="range" min="0" max="1000" value="0" class="yt-progress" id="ytProgress"
-                               oninput="seekYouTubeToPercent(this.value)">
-                        <span class="yt-time" id="ytDuration">0:00</span>
-                    </div>
-                    <div class="yt-controls-row">
-                        <div class="player-controls-left">
-                            <button class="control-btn" onclick="toggleYouTubePlay()" data-tooltip="Play/Pause"><i class="fas fa-pause" id="ytBottomIcon"></i></button>
-                            <div class="volume-group">
-                                <button class="control-btn" onclick="toggleYouTubeMute()" data-tooltip="Mute/Unmute">
-                                    <i class="fas fa-volume-up" id="ytVolumeIcon"></i>
-                                </button>
-                                <input type="range" min="0" max="1" step="0.05" value="1" class="volume-slider" id="ytVolumeSlider" oninput="handleYouTubeVolume(this.value)">
-                            </div>
-                            <div class="speed-controls">
-                                <button class="control-btn small" onclick="adjustYouTubeSpeed(-0.25)">-</button>
-                                <span class="speed-display" id="ytSpeedDisplay">1.0x</span>
-                                <button class="control-btn small" onclick="adjustYouTubeSpeed(0.25)">+</button>
-                            </div>
-                        </div>
-                        <div class="player-controls-right">
-                            <button class="control-btn active" id="ytCcBtn" onclick="toggleArabicCaptions()" data-tooltip="Arabic subtitles"><i class="fas fa-closed-captioning"></i></button>
-                            <button class="control-btn" onclick="toggleYouTubeCarousel()" data-tooltip="Up next"><i class="fas fa-chevron-up" id="ytCarouselIcon"></i></button>
-                            <!-- The only route to a dubbed audio track: the
-                                 IFrame API exposes no audio-track control, so
-                                 switching to an Arabic dub has to happen on
-                                 youtube.com (settings -> Audio track). -->
-                            <a class="control-btn" id="ytExternalLink" href="#" target="_blank" rel="noopener" data-tooltip="Open on YouTube (audio track)"><i class="fab fa-youtube"></i></a>
-                            <button class="control-btn" onclick="toggleYouTubeFullscreen()" data-tooltip="Fullscreen"><i class="fas fa-expand"></i></button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
