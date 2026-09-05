@@ -90,15 +90,26 @@ produce two rows on the home page, directly under *My Favorites*:
 
 - **Top 10 on YouTube** — the ten newest uploads across every channel, drawn in
   Netflix's ranked shape (an oversized outlined numeral with the thumbnail tucked
-  against it).
+  against it). The numeral's baseline is pulled onto the row's bottom edge with a
+  negative bottom margin, so the foot of the digit lines up with the foot of the
+  thumbnail; the value is measured rather than derived from font metrics.
 - **My Channels** — one circular avatar per channel. Clicking one plays a
   *random* upload from that channel less than three months old
   (`YOUTUBE.randomMaxAgeDays`), and the player then shows a **next** button that
   rolls to another one; a finished video does the same by itself. A channel that
   posts rarely may have nothing that recent, and falls back to its newest few.
 
-Avatars are not in the feed, so each costs one channel-page fetch, done once and
-stored with the channel. Until it lands the circle shows the channel's initial.
+- **All Videos** — every upload the feeds carry, merged the same way, in ordinary
+  cards. All three rows come from a **single** fetch pass; each just takes a
+  different depth from it.
+
+Avatars are not in the feed, so each costs one channel-page fetch (its
+`og:image`, re-requested at 176px rather than the 900px advertised), done once
+and stored with the channel. The initial is drawn underneath and stays there, so
+an avatar that fails to load leaves a letter rather than an empty circle. The
+image carries `referrerpolicy="no-referrer"` — without it googleusercontent
+refuses the request and Chrome blocks the response outright
+(`ERR_BLOCKED_BY_ORB`).
 
 This runs entirely on the public Atom feed,
 `youtube.com/feeds/videos.xml?channel_id=UC...` — **no API key, no quota and no
@@ -195,20 +206,21 @@ row** rather than favourite channels, and a finished video rolls on to the next.
 
 ### The scrim
 
-`#ytOverlay` is scrimmed along the **top only** — YouTube paints its own gradient
-along the bottom, and a second over it just muddies its controls — and that top
-bar is hidden until the pointer approaches it. A permanently drawn bar covered
-YouTube's settings menu, which opens *upward* from the bottom-right and reaches
-into that band; that menu holds the audio track, so the bar was hiding the one
-control this player exists to expose.
+### Nothing of ours sits on the picture
 
-Proximity cannot be measured with `mousemove`: the iframe swallows mouse events,
-so the wrapper hears nothing once the pointer is over the video. The bar is its
-own hot zone instead — an element at `opacity: 0` still receives pointer events.
-`mouseleave` alone is not enough either: crossing from the bar straight into the
-iframe delivers **no** boundary event at all (measured: zero `mouseleave` events),
-so every pointer event on the bar also re-arms a timeout, and that is what
-actually gets it off the screen.
+Our controls live in a bar **above** the video, not over it. Two earlier attempts
+put them in an overlay and both were wrong:
+
+- A permanently drawn bar covered YouTube's own top-right controls, and its
+  settings menu — which holds the audio track — opens *upward* from the
+  bottom-right into the same band.
+- Hiding that bar until the pointer approached did not fix it either, because an
+  overlay at `opacity: 0` **still takes pointer events**, so it went on swallowing
+  clicks aimed at the controls underneath.
+
+Out in its own bar, nothing of ours can reach the video at all: a hit-test at
+every corner of the frame returns the iframe. The only thing still drawn over the
+picture is the "up next" strip, which is off unless asked for.
 
 ## Arabic subtitles and dubbed audio
 

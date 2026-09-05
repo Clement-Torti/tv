@@ -470,7 +470,7 @@ function createChannelCircleHtml(channel) {
         <div class="yt-circle-img" style="background: ${getGradient(channel.name)}">
             <span class="yt-circle-initial">${escapeHtml(initial)}</span>
             ${channel.avatar
-                ? `<img src="${escapeAttr(channel.avatar)}" alt="${escapeAttr(channel.name)}" loading="lazy" onerror="this.remove()">`
+                ? `<img src="${escapeAttr(channel.avatar)}" alt="${escapeAttr(channel.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
                 : ''}
             <div class="yt-circle-overlay"><i class="fas fa-shuffle"></i></div>
         </div>
@@ -524,6 +524,9 @@ function repaintChannelCircle(channel) {
 
     // Layered over the initial, which stays as the fallback if this never loads.
     const img = document.createElement('img');
+    // Set before src: googleusercontent can refuse an avatar when a referrer it
+    // does not recognise is attached, and it needs nothing from ours.
+    img.referrerPolicy = 'no-referrer';
     img.src = channel.avatar;
     img.alt = channel.name;
     img.loading = 'lazy';
