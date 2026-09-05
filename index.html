@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="assets/css/player.css">
     <link rel="stylesheet" href="assets/css/catalog.css">
     <link rel="stylesheet" href="assets/css/timer.css">
+    <link rel="stylesheet" href="assets/css/youtube.css">
 
     <!-- Pinned to a major version: `@latest` would ship breaking releases straight to production. -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
@@ -74,7 +75,7 @@
                 <input type="text" class="search-input" placeholder="Titles, people, genres" id="searchInput" oninput="handleSearch(this.value)">
             </div>
             <div class="nav-element toHide"><i class="far fa-bell"></i></div>
-            <div class="nav-element profile-menu">
+            <div class="nav-element profile-menu" onclick="openProfileModal()" title="Profile and YouTube channels">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png" alt="Profile" class="profile-img">
                 <i class="fas fa-caret-down caret-icon"></i>
             </div>
@@ -136,6 +137,57 @@
     <div id="toast" class="toast">Notification</div>
 
     <div id="app-content" class="section section-home"></div>
+
+    <!-- Profile: the YouTube channels whose latest videos show on the home page. -->
+    <div class="modal-overlay" id="profileModal" onclick="closeProfileModal(event)">
+        <div class="modal-content profile-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fab fa-youtube" style="color:#ff0000"></i> My YouTube Channels</div>
+                <div class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></div>
+            </div>
+            <p class="modal-subtitle">Paste a channel link, an @handle or a UC… id. Their latest videos appear on the home page.</p>
+            <div class="collection-input-group">
+                <input type="text" class="collection-input" id="youtubeChannelInput" placeholder="youtube.com/@mkbhd"
+                       onkeypress="if(event.key === 'Enter') addYouTubeChannel()">
+                <button class="btn btn-play modal-add-btn" id="youtubeAddBtn" onclick="addYouTubeChannel()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div class="yt-form-status" id="youtubeFormStatus"></div>
+            <div class="collection-list" id="youtubeChannelList"></div>
+            <div class="yt-options">
+                <div class="nav-item nav-toggle yt-toggle" onclick="toggleHideShorts()"
+                     title="Shorts share the uploads feed with regular videos">
+                    <span>Hide Shorts</span>
+                    <span class="toggle-pill" id="hideShortsPill"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YouTube player. An iframe, not the site player: YouTube serves no
+         manifest hls.js or dashjs could attach to. -->
+    <div class="yt-modal" id="youtubeModal" onclick="closeYouTubeModal(event)">
+        <div class="yt-modal-inner" onclick="event.stopPropagation()">
+            <div class="yt-modal-top">
+                <div class="yt-modal-title" id="youtubeModalTitle">YouTube</div>
+                <div class="yt-modal-actions">
+                    <!-- Some uploads forbid embedding, so always offer the way out. -->
+                    <a class="yt-modal-link" id="youtubeModalLink" href="#" target="_blank" rel="noopener">
+                        <i class="fab fa-youtube"></i> Open on YouTube
+                    </a>
+                    <button class="yt-modal-close" onclick="closeYouTubeModal()" aria-label="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="yt-modal-frame">
+                <iframe id="youtubeFrame" title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
 
     <!-- Collections modal -->
     <div class="modal-overlay" id="collectionModal" onclick="closeCollectionModal(event)">
@@ -222,6 +274,7 @@
     <script src="assets/js/navigation.js"></script>
     <script src="assets/js/render.js"></script>
     <script src="assets/js/collections.js"></script>
+    <script src="assets/js/youtube.js"></script>
     <script src="assets/js/hero.js"></script>
     <script src="assets/js/player.js"></script>
     <script src="assets/js/chromecast.js"></script>

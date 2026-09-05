@@ -9,6 +9,14 @@ const channelsById = new Map();
 let favoriteNames = readStore(STORAGE_KEYS.favorites, []);
 let customSections = readStore(STORAGE_KEYS.sections, []);
 
+// Channels the user follows on YouTube: [{ id: 'UC...', name: 'Marques Brownlee' }].
+let youtubeChannels = readStore(STORAGE_KEYS.youtubeChannels, []);
+
+// Shorts share the uploads feed with regular videos and there is no field that
+// separates them, only the /shorts/ link they carry. Most people following a
+// channel for its videos do not want the row filled with them, so this is on.
+let hideShorts = localStorage.getItem(STORAGE_KEYS.hideShorts) !== 'false';
+
 // Hide channels whose every stream has been checked and failed. On by default:
 // roughly two in five streams in the upstream lists do not play in a browser.
 let hideBroken = localStorage.getItem(STORAGE_KEYS.hideBroken) !== 'false';
@@ -38,6 +46,15 @@ function saveFavorites() {
 
 function saveCustomSections() {
     localStorage.setItem(STORAGE_KEYS.sections, JSON.stringify(customSections));
+}
+
+function saveYouTubeChannels() {
+    localStorage.setItem(STORAGE_KEYS.youtubeChannels, JSON.stringify(youtubeChannels));
+}
+
+function setHideShorts(value) {
+    hideShorts = Boolean(value);
+    localStorage.setItem(STORAGE_KEYS.hideShorts, String(hideShorts));
 }
 
 function setHideBroken(value) {

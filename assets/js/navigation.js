@@ -174,6 +174,10 @@ function renderAllSections() {
     const favs = allChannels.filter(c => favoriteNames.includes(c.name));
     if (favs.length > 0) renderRow('My Favorites', favs, true);
 
+    // Sits right under the favourites. Written synchronously so it holds its
+    // place in the page; the feeds fill it in when they land.
+    renderYouTubeRow();
+
     const listable = visibleChannels(allChannels);
 
     customSections.forEach(sec => {

@@ -1,6 +1,7 @@
 # TV
 
-Netflix-style front-end for live TV channels plus a movies/series catalogue.
+Netflix-style front-end for live TV channels, a movies/series catalogue, and
+the latest videos from the YouTube channels you follow.
 Pure static site — no build step, no dependencies to install.
 
 **Live:** https://clement-torti.github.io/tv/
@@ -17,6 +18,7 @@ assets/
     content.css       Skeleton loader, sections, rows, grids, cards
     player.css        Collections modal, video player, carousel
     catalog.css       Movies/Series toolbar and poster grids
+    youtube.css       YouTube row, embedded player, profile channel list
   js/
     config.js         Sources, section list, health thresholds, limits
     state.js          Shared state and localStorage persistence
@@ -32,6 +34,7 @@ assets/
     player.js         Full-screen player and its controls
     chromecast.js     Cast sender integration
     catalog.js        Movies and Series (one shared scraper)
+    youtube.js        Followed YouTube channels, their feeds and the home row
     main.js           Bootstrap and global listeners
   img/                favicon, logo, bundled channel logo
 worker/
@@ -80,6 +83,62 @@ Merging is what buys reliability. On channels that have more than one candidate,
 trying the alternatives lifts the playable rate from 41% to 65%; folding in
 Free-TV rescues a further 5% of the channels the two sources share.
 
+## YouTube channels
+
+The profile menu (the avatar, top right) holds a list of YouTube channels. Their
+latest uploads are merged into one **Latest on YouTube** row directly under
+*My Favorites* on the home page, newest first across every channel.
+
+This runs entirely on the public Atom feed,
+`youtube.com/feeds/videos.xml?channel_id=UC...` — **no API key, no quota and no
+OAuth**, which is why it needs no configuration beyond adding a channel. Two
+properties of that feed shape the implementation:
+
+- **It sends no CORS header.** The browser cannot read it directly, so every
+  request goes through the same Worker as the streams and the catalogue. Nothing
+  extra needs deploying: `worker/stream-proxy.js` forwards any `http(s)` target
+  already.
+- **It carries the 15 most recent uploads and nothing else** — no paging, no
+  `max-results`. "Latest videos" is therefore all this can ever show, which is
+  exactly what the row is for. `YOUTUBE.perChannel` trims it further before the
+  merge so one prolific channel cannot crowd out the rest.
+
+### Adding a channel
+
+The input accepts whatever the address bar happened to give you: a bare
+`UC…` id, `/channel/UC…`, an `@handle` (with or without the URL around it), the
+legacy `/c/` and `/user/` paths, or even a link to one of the channel's videos.
+
+Anything that is not already an id is resolved by fetching the page and reading
+the channel id out of the markup, and **the order of that read matters**. On a
+channel page the `<link rel="canonical">` is authoritative; the first
+`"channelId"` in the HTML belongs to whatever channel the sidebar is recommending,
+so trusting it adds the wrong channel — measured on `youtube.com/@mkbhd`, that
+first match is a completely unrelated id. On a *watch* page there is no channel
+canonical, and there the first `"channelId"` **is** the uploader. So canonical is
+tried first and the embedded id is the fallback, which covers both.
+
+Resolving a handle costs one ~2.5 MB page fetch, but only once: the id and name
+are stored, and afterwards only the few-KB feed is read.
+
+### Shorts
+
+Shorts share the uploads feed with regular videos and **no field distinguishes
+them** — the only signal is the `/shorts/` link the entry carries. The "Hide
+Shorts" toggle in the profile modal keys off that, and is on by default.
+
+### Caching and playback
+
+Feeds are cached in `localStorage` for 30 minutes (`YOUTUBE.cacheTtlMs`), so a
+page refresh costs no requests at all; the refresh button beside the row heading
+bypasses it. YouTube itself caches the feed for several minutes, so polling harder
+would only burn Worker quota for the same bytes.
+
+Videos play in an embedded iframe, **not** the site's own player: YouTube serves
+no manifest that hls.js or dashjs could attach to, so none of `stream.js` applies.
+Some uploads forbid embedding, so the player header always offers a way out to
+youtube.com.
+
 ## Why streams get hidden
 
 Only about **57% of upstream streams actually play in a browser**, measured over
@@ -111,6 +170,8 @@ them and lost 628 working channels, BFM Alsace among them.
 
 - Favourites and custom sections live in `localStorage`, keyed by the channel id
   (or its name, for streams the API has not matched to one).
+- Followed YouTube channels, the "Hide Shorts" preference and the cached feeds
+  are `localStorage` too, so the list is per-browser and never leaves the device.
 - **Public CORS proxies are not usable for this.** Measured from a real browser:
   `corsproxy.io` answers 403 on every request, and `api.allorigins.win` succeeds
   only intermittently (1 of 3 attempts) at 6–25 seconds per request. Live HLS

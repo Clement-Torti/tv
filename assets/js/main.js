@@ -8,11 +8,14 @@ function initGlobalListeners() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (isPlayerOpen()) closePlayer();
+            if (isYouTubeModalOpen()) closeYouTubeModal();
             closeCollectionModal();
+            closeProfileModal();
             return;
         }
 
-        if (!isPlayerOpen()) return;
+        // The YouTube iframe owns its own keyboard controls.
+        if (!isPlayerOpen() || isYouTubeModalOpen()) return;
 
         switch (e.key) {
             case ' ':
@@ -38,6 +41,7 @@ function initGlobalListeners() {
 function init() {
     initNavigation();
     initContentInteractions();
+    initYouTube();
     initPlayerAutoHide();
     initGlobalListeners();
     initWatchTimer();

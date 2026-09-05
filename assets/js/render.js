@@ -195,6 +195,13 @@ function initContentInteractions() {
             return;
         }
 
+        // A YouTube card opens the embedded player, not a channel stream.
+        const ytCard = e.target.closest('.card[data-yt-id]');
+        if (ytCard) {
+            openYouTubeVideo(ytCard.dataset.ytId);
+            return;
+        }
+
         // Catalogue posters (Movies / Series) just open the source page.
         const external = e.target.closest('.card[data-href]');
         if (external) {

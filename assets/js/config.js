@@ -95,13 +95,45 @@ const CATALOG_BASE_URL = 'https://pelispedia.mov';
 // proxy this used before, api.allorigins.win, now fails every request.
 const CATALOG_PROXY = 'https://tv-stream-proxy.clement-torti.workers.dev/?url=';
 
+/*
+ * YouTube channel feeds.
+ *
+ * `https://www.youtube.com/feeds/videos.xml?channel_id=UC...` is a plain Atom
+ * feed: no API key, no quota, no OAuth. It does *not* send CORS headers, though,
+ * so the browser cannot read it directly -- every request goes through the same
+ * Worker the streams and the catalogue use.
+ *
+ * The feed carries the 15 most recent uploads and nothing else: there is no
+ * paging and no `max-results`, so 15 per channel is a hard ceiling, not a choice.
+ */
+const YOUTUBE = {
+    feedBase: 'https://www.youtube.com/feeds/videos.xml?channel_id=',
+    // Same Worker as STREAM_PROXY/CATALOG_PROXY, named separately so it can be
+    // pointed elsewhere without touching stream playback.
+    proxy: 'https://tv-stream-proxy.clement-torti.workers.dev/?url=',
+    // Feeds are cached this long before being re-fetched. YouTube itself caches
+    // the feed for several minutes, so polling harder would only burn quota.
+    cacheTtlMs: 30 * 60 * 1000,
+    // Feeds fetched at once. Each is a few KB, but every one is a Worker request.
+    concurrency: 4,
+    // Videos kept per channel before the merged row is built.
+    perChannel: 6,
+    // Watch URL used for the "open on YouTube" fallback.
+    watchBase: 'https://www.youtube.com/watch?v=',
+    // Privacy-preserving embed host, used by the in-app player.
+    embedBase: 'https://www.youtube-nocookie.com/embed/'
+};
+
 // localStorage keys.
 const STORAGE_KEYS = {
     favorites: 'clement_favorites',
     sections: 'clement_custom_sections',
     verdicts: 'clement_stream_health',
     hideBroken: 'clement_hide_broken',
-    watchTimer: 'clement_watch_timer'
+    watchTimer: 'clement_watch_timer',
+    youtubeChannels: 'clement_youtube_channels',
+    youtubeCache: 'clement_youtube_cache',
+    hideShorts: 'clement_hide_shorts'
 };
 
 // Caps that keep very large listings from freezing the page.
@@ -112,7 +144,9 @@ const LIMITS = {
     homeRow: 60,
     discoverRow: 50,
     otherSection: 500,
-    searchResults: 200
+    searchResults: 200,
+    // Merged YouTube row on the home page, newest first across every channel.
+    youtubeRow: 40
 };
 
 // Channels bundled with the app, appended to whatever the sources return.
