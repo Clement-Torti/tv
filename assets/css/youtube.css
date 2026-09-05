@@ -91,23 +91,35 @@
 
 .yt-rank {
     flex: 0 0 auto;
-    font-size: 10.5rem;
-    line-height: 0.72;
+    font-size: 13rem;
     font-weight: 900;
     letter-spacing: -0.07em;
     color: var(--dark);
     -webkit-text-stroke: 3px #6f6f6f;
     user-select: none;
     /* Tucks the thumbnail over the numeral's right edge. */
-    margin-right: -20px;
+    margin-right: -24px;
+    /*
+     * Sits the digits' baseline on the row's bottom edge, so the foot of the
+     * number lines up with the foot of the thumbnail.
+     *
+     * The row is `align-items: flex-end`, which lines up *margin* boxes, and a
+     * line box carries descender space below the baseline that digits never use.
+     * A negative bottom margin lets the line box hang past the row edge by
+     * exactly that much. The value is measured rather than derived: at 0.22em
+     * the glyph overhung the thumbnail by 0.1em, so 0.12em is what actually
+     * lands it flush in this font stack.
+     */
+    line-height: 1;
+    margin-bottom: -0.12em;
 }
 /* Two digits are far wider, so 10 needs less overlap and tighter tracking. */
-.yt-rank.wide { letter-spacing: -0.12em; margin-right: -12px; }
+.yt-rank.wide { letter-spacing: -0.12em; margin-right: -14px; }
 
 .yt-top10-thumb {
     position: relative;
     flex: 0 0 auto;
-    width: 248px; height: 140px;
+    width: 300px; height: 169px;
     border-radius: 5px;
     overflow: hidden;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -138,7 +150,12 @@
     border: 2px solid transparent;
     transition: transform 0.2s, border-color 0.2s;
 }
-.yt-circle-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Sits over the initial rather than replacing it. */
+.yt-circle-img img {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+}
 .yt-circle-initial { font-size: 2.2rem; font-weight: 800; color: rgba(255,255,255,0.9); }
 
 /* The shuffle glyph says the click is "something from them", not a channel page. */
@@ -189,47 +206,32 @@
 #ytWrapper .player-status { z-index: 15; }
 
 /*
- * Click-through is the whole point here.
+ * Our controls live in a bar ABOVE the picture.
  *
- * player.css turns pointer-events on for the entire overlay while the wrapper is
- * hovered, which over an iframe would swallow every click meant for YouTube's
- * controls -- including the settings menu holding the audio track. So the
- * overlay itself never takes pointer events; only its own controls do.
+ * They used to be an overlay inside the frame, and that was wrong twice over: it
+ * covered YouTube's own top-right controls, and even at `opacity: 0` an overlay
+ * still takes pointer events, so it swallowed clicks aimed at them. Out here
+ * nothing of ours can reach the video at all.
  */
-#ytOverlay, #ytWrapper:hover #ytOverlay { pointer-events: none; }
-#ytOverlay .player-top,
-#ytOverlay .back-btn,
-#ytOverlay .yt-top-actions,
-#ytOverlay .control-btn,
-#ytCarousel { pointer-events: auto; }
-
-/*
- * The overlay itself is always "on" and carries no background; its children
- * decide when they are visible. player.css's hover-fade would otherwise take the
- * carousel with it whenever the pointer moved away.
- */
-#ytOverlay {
-    opacity: 1;
-    background: none;
-    justify-content: flex-start;
+.yt-titlebar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    height: 58px;
+    padding: 0 18px;
+    background: #0b0b0b;
+    border-bottom: 1px solid #1f1f1f;
 }
+.yt-titlebar .back-btn { font-size: 1.5rem; padding: 6px 10px; }
+.yt-titlebar .player-title { text-align: left; margin-left: 0; font-size: 1.05rem; }
 
-/*
- * The top bar appears only as the pointer approaches the top of the picture
- * (see initYouTubeTopBar). YouTube's settings menu -- which holds the audio
- * track -- opens upward from the bottom-right and reaches into this band, and a
- * permanently drawn bar sat right on top of it.
- */
-#ytOverlay .player-top {
-    /* .player-overlay carries 20px of padding; pull the scrim to the edges. */
-    margin: -20px -20px 0;
-    padding: 18px 26px 62px;
-    background: linear-gradient(to bottom,
-        rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 45%, transparent 100%);
-    opacity: 0;
-    transition: opacity 0.25s;
-}
-#ytWrapper.yt-show-top #ytOverlay .player-top { opacity: 1; }
+/* The wrapper takes whatever height the bar leaves. */
+#ytWrapper { flex: 1 1 auto; height: auto; min-height: 0; }
+
+/* No overlay above the picture any more, so the status sits just inside it. */
+#ytWrapper .player-status { top: 16px; z-index: 15; }
 
 .yt-top-actions { display: flex; align-items: center; gap: 6px; }
 .yt-top-actions .control-btn { font-size: 1.15rem; padding: 8px; }
@@ -297,9 +299,11 @@
 @media (max-width: 768px) {
     .yt-top-actions .control-btn { font-size: 1rem; padding: 6px; }
     #ytCarousel { bottom: 74px; }
-    .yt-rank { font-size: 6.5rem; -webkit-text-stroke-width: 2px; margin-right: -12px; }
-    .yt-rank.wide { margin-right: -8px; }
-    .yt-top10-thumb { width: 176px; height: 99px; }
+    .yt-rank { font-size: 7.5rem; -webkit-text-stroke-width: 2px; margin-right: -14px; }
+    .yt-rank.wide { margin-right: -9px; }
+    .yt-top10-thumb { width: 200px; height: 113px; }
+    .yt-titlebar { height: 50px; padding: 0 10px; gap: 8px; }
+    .yt-titlebar .player-title { font-size: 0.9rem; }
     .yt-row-message { height: 120px; }
     .yt-title { font-size: 0.75rem; }
     .yt-meta { font-size: 0.64rem; margin-top: 3px; }

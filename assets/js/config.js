@@ -172,8 +172,9 @@ const LIMITS = {
     discoverRow: 50,
     otherSection: 500,
     searchResults: 200,
-    // Merged YouTube row on the home page, newest first across every channel.
-    youtubeRow: 40
+    // The "All Videos" row. Each feed carries 15 uploads, so this is a ceiling on
+    // the merged list rather than a number normally reached.
+    youtubeRow: 120
 };
 
 // Channels bundled with the app, appended to whatever the sources return.

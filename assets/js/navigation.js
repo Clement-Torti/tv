@@ -178,6 +178,7 @@ function renderAllSections() {
     // place in the page; the feeds fill it in when they land.
     renderYouTubeRow();
     renderYouTubeChannelsRow();
+    renderYouTubeAllRow();
 
     const listable = visibleChannels(allChannels);
 

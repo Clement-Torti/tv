@@ -166,35 +166,33 @@
     </div>
 
     <!-- YouTube player.
-         YouTube's OWN controls are deliberately left on (`controls: 1`): the
-         audio-track selector (settings -> Audio track) lives in them, and it is
-         the only way to reach an Arabic dub. `setAudioTrack` exists on YouTube's
-         internal player but is not exposed on the IFrame API's postMessage
-         bridge, so a cross-origin page like this one cannot call it -- verified.
-         This overlay therefore carries navigation only (back, title, subtitles,
-         up next) and leaves the bottom of the frame clear for YouTube's bar. -->
+         YouTube's OWN controls are left on (`controls: 1`): the audio-track
+         selector lives in them and is the only route to an Arabic dub, since
+         `setAudioTrack` is not exposed on the IFrame API's postMessage bridge.
+         Our own controls sit in a bar ABOVE the video rather than over it -- an
+         overlay, even a hidden one, still takes pointer events and was swallowing
+         clicks meant for YouTube's own top-right controls. Nothing of ours now
+         covers the picture except the "up next" strip, which is off by default. -->
     <div class="video-modal" id="youtubeModal">
+        <div class="yt-titlebar">
+            <div class="back-btn" onclick="closeYouTubeModal()" title="Back"><i class="fas fa-arrow-left"></i></div>
+            <div class="player-title" id="ytPlayerTitle">YouTube</div>
+            <div class="yt-top-actions">
+                <!-- Re-asserts Arabic: YouTube's own CC button turns on whatever
+                     language it defaults to, not necessarily ours. -->
+                <button class="control-btn active" id="ytCcBtn" onclick="toggleArabicCaptions()" data-tooltip="Arabic subtitles"><i class="fas fa-closed-captioning"></i></button>
+                <!-- Shown only when playback came from a channel circle. -->
+                <button class="control-btn" id="ytNextBtn" style="display:none" onclick="nextRandomChannelVideo()" data-tooltip="Next video"><i class="fas fa-forward"></i></button>
+                <button class="control-btn" onclick="toggleYouTubeCarousel()" data-tooltip="Up next"><i class="fas fa-chevron-up" id="ytCarouselIcon"></i></button>
+                <a class="control-btn" id="ytExternalLink" href="#" target="_blank" rel="noopener" data-tooltip="Open on YouTube"><i class="fab fa-youtube"></i></a>
+            </div>
+        </div>
         <div class="video-wrapper" id="ytWrapper">
             <!-- Replaced in place by the API with the player iframe. -->
             <div id="ytFrame"></div>
             <div class="player-status" id="ytStatus"></div>
-            <div class="player-overlay" id="ytOverlay">
-                <div class="player-top">
-                    <div class="back-btn" onclick="closeYouTubeModal()" title="Back"><i class="fas fa-arrow-left"></i></div>
-                    <div class="player-title" id="ytPlayerTitle">YouTube</div>
-                    <div class="yt-top-actions">
-                        <!-- Re-asserts Arabic: YouTube's own CC button turns on
-                             whatever language it defaults to, not necessarily ours. -->
-                        <button class="control-btn active" id="ytCcBtn" onclick="toggleArabicCaptions()" data-tooltip="Arabic subtitles"><i class="fas fa-closed-captioning"></i></button>
-                        <!-- Shown only when playback came from a channel circle. -->
-                        <button class="control-btn" id="ytNextBtn" style="display:none" onclick="nextRandomChannelVideo()" data-tooltip="Next video"><i class="fas fa-forward"></i></button>
-                        <button class="control-btn" onclick="toggleYouTubeCarousel()" data-tooltip="Up next"><i class="fas fa-chevron-down" id="ytCarouselIcon"></i></button>
-                        <a class="control-btn" id="ytExternalLink" href="#" target="_blank" rel="noopener" data-tooltip="Open on YouTube"><i class="fab fa-youtube"></i></a>
-                    </div>
-                </div>
-                <div id="ytCarousel" class="player-carousel">
-                    <div class="carousel-track" id="ytCarouselList"></div>
-                </div>
+            <div id="ytCarousel" class="player-carousel">
+                <div class="carousel-track" id="ytCarouselList"></div>
             </div>
         </div>
     </div>

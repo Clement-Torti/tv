@@ -222,15 +222,15 @@ function cachedChannelVideos(channelId) {
 
 /* Runs the feed fetches a few at a time: each one is a Worker request. */
 async function fetchAllFeeds(channels, options) {
-    const results = [];
+    // Keyed by channel so each row can decide its own depth.
+    const byChannel = new Map();
     const queue = channels.slice();
 
     const worker = async () => {
         while (queue.length > 0) {
             const channel = queue.shift();
             try {
-                const videos = await fetchChannelFeed(channel.id, options);
-                results.push(...videos.slice(0, YOUTUBE.perChannel));
+                byChannel.set(channel.id, await fetchChannelFeed(channel.id, options));
             } catch (e) {
                 console.warn(`YouTube feed failed for ${channel.name || channel.id}`, e);
             }
@@ -240,7 +240,7 @@ async function fetchAllFeeds(channels, options) {
     await Promise.all(
         Array.from({ length: Math.min(YOUTUBE.concurrency, channels.length) }, worker)
     );
-    return results;
+    return byChannel;
 }
 
 /* --- The home row --------------------------------------------------------- */
@@ -315,6 +315,16 @@ function videoCaption(video) {
         </div>`;
 }
 
+/* The ordinary card, used by the full-catalogue row. */
+function createVideoCardHtml(video) {
+    return `
+    <div class="card yt-card" data-yt-id="${escapeAttr(video.id)}" style="background: ${getGradient(video.title)}">
+        <img src="${escapeAttr(video.thumb)}" onerror="this.style.display='none'" loading="lazy"
+             alt="${escapeAttr(video.title)}">
+        ${videoCaption(video)}
+    </div>`;
+}
+
 /*
  * A ranked card, in the shape Netflix uses for its Top 10: an oversized outlined
  * numeral with the thumbnail tucked against it. The rank is decoration, so it is
@@ -341,8 +351,6 @@ function renderYouTubeRow() {
     if (youtubeChannels.length === 0) return;
 
     const token = ++ytRenderToken;
-    const rowId = 'row-youtube';
-
     document.getElementById('app-content').insertAdjacentHTML('beforeend', `
         <div class="section-title" id="yt-section-title">
             <i class="fab fa-youtube" style="color:#ff0000"></i> Top 10 on YouTube
@@ -351,40 +359,78 @@ function renderYouTubeRow() {
             </button>
         </div>
         <div class="row-container" id="yt-row-container">
-            <button class="scroll-btn left" data-scroll="-1" data-row="${rowId}"><i class="fas fa-chevron-left"></i></button>
-            <div class="row yt-top10-row" id="${rowId}">
+            <button class="scroll-btn left" data-scroll="-1" data-row="row-youtube"><i class="fas fa-chevron-left"></i></button>
+            <div class="row yt-top10-row" id="row-youtube">
                 <div class="yt-row-message"><i class="fas fa-circle-notch fa-spin"></i> Loading latest videos…</div>
             </div>
-            <button class="scroll-btn right" data-scroll="1" data-row="${rowId}"><i class="fas fa-chevron-right"></i></button>
+            <button class="scroll-btn right" data-scroll="1" data-row="row-youtube"><i class="fas fa-chevron-right"></i></button>
         </div>`);
 
-    fillYouTubeRow(token, rowId, { force: false });
+    fillYouTubeRows(token, { force: false });
 }
 
-async function fillYouTubeRow(token, rowId, options) {
-    let videos = [];
+/*
+ * The whole catalogue, under the channel circles: every upload the feeds carry,
+ * not just the ten that made the ranked row. Rendered synchronously alongside
+ * the others so the single fetch below can fill both rows at once.
+ */
+function renderYouTubeAllRow() {
+    if (youtubeChannels.length === 0) return;
+
+    document.getElementById('app-content').insertAdjacentHTML('beforeend', `
+        <div class="section-title">All Videos</div>
+        <div class="row-container">
+            <button class="scroll-btn left" data-scroll="-1" data-row="row-youtube-all"><i class="fas fa-chevron-left"></i></button>
+            <div class="row" id="row-youtube-all">
+                <div class="yt-row-message"><i class="fas fa-circle-notch fa-spin"></i> Loading…</div>
+            </div>
+            <button class="scroll-btn right" data-scroll="1" data-row="row-youtube-all"><i class="fas fa-chevron-right"></i></button>
+        </div>`);
+}
+
+/* Drops Shorts when the profile asks for it, then merges fairly across channels. */
+function mergeForRow(lists, perChannelLimit, total) {
+    const pool = [];
+    for (const videos of lists) {
+        const kept = hideShorts ? videos.filter(v => !v.isShort) : videos;
+        pool.push(...kept.slice(0, perChannelLimit));
+    }
+    return interleaveByChannel(pool).slice(0, total);
+}
+
+async function fillYouTubeRows(token, options) {
+    let byChannel = new Map();
     try {
-        videos = await fetchAllFeeds(youtubeChannels, options);
+        byChannel = await fetchAllFeeds(youtubeChannels, options);
     } catch (e) {
         console.error(e);
     }
 
     // The user navigated away, or the home page was re-rendered underneath us.
     if (token !== ytRenderToken) return;
+
+    const lists = Array.from(byChannel.values());
+    const top = mergeForRow(lists, YOUTUBE.perChannel, YOUTUBE.topCount);
+    const all = mergeForRow(lists, Infinity, LIMITS.youtubeRow);
+
+    // The carousel and the roll-on walk the full list, not just the ranked ten.
+    all.forEach(v => ytVideosById.set(v.id, v));
+    top.forEach(v => ytVideosById.set(v.id, v));
+    ytRowVideos = all.length > 0 ? all : top;
+
+    paintYouTubeRow('row-youtube', top, createTop10CardHtml);
+    paintYouTubeRow('row-youtube-all', all, createVideoCardHtml);
+}
+
+function paintYouTubeRow(rowId, videos, makeCard) {
     const row = document.getElementById(rowId);
     if (!row || !row.isConnected) return;
-
-    if (hideShorts) videos = videos.filter(v => !v.isShort);
-    videos = interleaveByChannel(videos).slice(0, YOUTUBE.topCount);
-
-    videos.forEach(v => ytVideosById.set(v.id, v));
-    ytRowVideos = videos;
 
     if (videos.length === 0) {
         row.innerHTML = '<div class="yt-row-message">No videos found. Check the channels in your profile.</div>';
         return;
     }
-    row.innerHTML = videos.map((v, i) => createTop10CardHtml(v, i + 1)).join('');
+    row.innerHTML = videos.map((v, i) => makeCard(v, i + 1)).join('');
 }
 
 /* --- Channel circles ---
@@ -412,13 +458,20 @@ function renderYouTubeChannelsRow() {
 
 function createChannelCircleHtml(channel) {
     const initial = (channel.name || '?').trim().charAt(0).toUpperCase();
+    /*
+     * The initial is always drawn and the avatar is layered over it, rather than
+     * one replacing the other: a stored avatar URL that later fails to load used
+     * to leave an empty circle, since `onerror` removed the image and the initial
+     * was already gone.
+     */
     return `
     <div class="yt-circle" data-yt-channel="${escapeAttr(channel.id)}"
          title="Play something recent from ${escapeAttr(channel.name)}">
         <div class="yt-circle-img" style="background: ${getGradient(channel.name)}">
+            <span class="yt-circle-initial">${escapeHtml(initial)}</span>
             ${channel.avatar
                 ? `<img src="${escapeAttr(channel.avatar)}" alt="${escapeAttr(channel.name)}" loading="lazy" onerror="this.remove()">`
-                : `<span class="yt-circle-initial">${escapeHtml(initial)}</span>`}
+                : ''}
             <div class="yt-circle-overlay"><i class="fas fa-shuffle"></i></div>
         </div>
         <div class="yt-circle-name">${escapeHtml(channel.name)}</div>
@@ -467,17 +520,15 @@ function extractChannelAvatar(html) {
 
 function repaintChannelCircle(channel) {
     const circle = document.querySelector(`.yt-circle[data-yt-channel="${channel.id}"] .yt-circle-img`);
-    if (!circle || !channel.avatar) return;
-    const initial = circle.querySelector('.yt-circle-initial');
-    if (initial) initial.remove();
-    if (circle.querySelector('img')) return;
+    if (!circle || !channel.avatar || circle.querySelector('img')) return;
 
+    // Layered over the initial, which stays as the fallback if this never loads.
     const img = document.createElement('img');
     img.src = channel.avatar;
     img.alt = channel.name;
     img.loading = 'lazy';
     img.onerror = () => img.remove();
-    circle.prepend(img);
+    circle.appendChild(img);
 }
 
 /* --- Random play from one channel --- */
@@ -526,11 +577,12 @@ function nextRandomChannelVideo() {
 
 /* Toolbar button: bypasses the cache and re-reads every feed. */
 function refreshYouTubeRow() {
-    const row = document.getElementById('row-youtube');
-    if (!row) return;
-
-    row.innerHTML = '<div class="yt-row-message"><i class="fas fa-circle-notch fa-spin"></i> Refreshing…</div>';
-    fillYouTubeRow(++ytRenderToken, 'row-youtube', { force: true });
+    const spinner = '<div class="yt-row-message"><i class="fas fa-circle-notch fa-spin"></i> Refreshing…</div>';
+    for (const id of ['row-youtube', 'row-youtube-all']) {
+        const row = document.getElementById(id);
+        if (row) row.innerHTML = spinner;
+    }
+    fillYouTubeRows(++ytRenderToken, { force: true });
 }
 
 /* --- Video playback ---
@@ -581,7 +633,6 @@ async function openYouTubeVideo(videoId, shuffleChannelId = null) {
     setWatchTimerFloating(true);
     setYouTubeStatus('Loading…');
 
-    flashYouTubeTopBar();
     hintArabicAudio();
 
     // A new video brings its own caption tracks; clear the previous verdict.
@@ -851,7 +902,6 @@ function closeYouTubeModal(e) {
     setWatchTimerFloating(false);
     document.getElementById('ytCarousel').classList.remove('open');
     document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-down';
-    hideYouTubeTopBar();
     ytCurrentVideo = null;
     ytShuffleChannel = null;
     if (document.fullscreenElement) document.exitFullscreen();
@@ -868,54 +918,6 @@ function setYouTubeStatus(message) {
     if (!el) return;
     el.innerText = message || '';
     el.classList.toggle('show', Boolean(message));
-}
-
-/*
- * Reveals our top bar on approach, and keeps it out of the way otherwise.
- *
- * It used to sit there permanently, and YouTube's settings menu -- where the
- * audio track is chosen -- opens upward from the bottom-right and reaches into
- * that band, so our bar covered the very control this player exists to expose.
- *
- * Proximity cannot be measured with mousemove here: the iframe swallows mouse
- * events, so the wrapper hears nothing at all once the pointer is over the
- * video. The bar is therefore its own hot zone -- an element at `opacity: 0`
- * still receives pointer events, so entering and leaving it is the signal.
- */
-function initYouTubeTopBar() {
-    const bar = document.querySelector('#ytOverlay .player-top');
-
-    /*
-     * `mouseleave` is the natural signal but cannot be relied on alone: crossing
-     * from the bar straight into the iframe does not always deliver one, and the
-     * bar then stays open over YouTube's controls -- measured. So every pointer
-     * event on the bar also re-arms a timeout, and that is what actually
-     * guarantees it goes away.
-     */
-    bar.addEventListener('mouseenter', showYouTubeTopBar);
-    bar.addEventListener('mousemove', showYouTubeTopBar);
-    bar.addEventListener('mouseleave', hideYouTubeTopBar);
-}
-
-let ytTopBarTimer = null;
-
-function showYouTubeTopBar(holdMs = 1500) {
-    document.getElementById('ytWrapper').classList.add('yt-show-top');
-    clearTimeout(ytTopBarTimer);
-    ytTopBarTimer = setTimeout(hideYouTubeTopBar, typeof holdMs === 'number' ? holdMs : 1500);
-}
-
-function hideYouTubeTopBar() {
-    clearTimeout(ytTopBarTimer);
-    document.getElementById('ytWrapper').classList.remove('yt-show-top');
-}
-
-/*
- * Shows the bar for a moment when a video opens, so the title and the way back
- * are seen at least once before the picture is left clear.
- */
-function flashYouTubeTopBar() {
-    showYouTubeTopBar(3500);
 }
 
 /*
