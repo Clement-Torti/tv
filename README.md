@@ -85,9 +85,20 @@ Free-TV rescues a further 5% of the channels the two sources share.
 
 ## YouTube channels
 
-The profile menu (the avatar, top right) holds a list of YouTube channels. Their
-latest uploads are merged into one **Latest on YouTube** row directly under
-*My Favorites* on the home page, newest first across every channel.
+The profile menu (the avatar, top right) holds a list of YouTube channels. They
+produce two rows on the home page, directly under *My Favorites*:
+
+- **Top 10 on YouTube** — the ten newest uploads across every channel, drawn in
+  Netflix's ranked shape (an oversized outlined numeral with the thumbnail tucked
+  against it).
+- **My Channels** — one circular avatar per channel. Clicking one plays a
+  *random* upload from that channel less than three months old
+  (`YOUTUBE.randomMaxAgeDays`), and the player then shows a **next** button that
+  rolls to another one; a finished video does the same by itself. A channel that
+  posts rarely may have nothing that recent, and falls back to its newest few.
+
+Avatars are not in the feed, so each costs one channel-page fetch, done once and
+stored with the channel. Until it lands the circle shows the channel's initial.
 
 This runs entirely on the public Atom feed,
 `youtube.com/feeds/videos.xml?channel_id=UC...` — **no API key, no quota and no
@@ -184,8 +195,20 @@ row** rather than favourite channels, and a finished video rolls on to the next.
 
 ### The scrim
 
-`#ytOverlay` is scrimmed along the **top only**. YouTube paints its own gradient
-along the bottom, and a second one over it just muddies its controls.
+`#ytOverlay` is scrimmed along the **top only** — YouTube paints its own gradient
+along the bottom, and a second over it just muddies its controls — and that top
+bar is hidden until the pointer approaches it. A permanently drawn bar covered
+YouTube's settings menu, which opens *upward* from the bottom-right and reaches
+into that band; that menu holds the audio track, so the bar was hiding the one
+control this player exists to expose.
+
+Proximity cannot be measured with `mousemove`: the iframe swallows mouse events,
+so the wrapper hears nothing once the pointer is over the video. The bar is its
+own hot zone instead — an element at `opacity: 0` still receives pointer events.
+`mouseleave` alone is not enough either: crossing from the bar straight into the
+iframe delivers **no** boundary event at all (measured: zero `mouseleave` events),
+so every pointer event on the bar also re-arms a timeout, and that is what
+actually gets it off the screen.
 
 ## Arabic subtitles and dubbed audio
 
@@ -238,9 +261,12 @@ So the method exists but is not on the API's whitelist, and only same-origin cod
 inside the iframe may call it. A static page cannot, and no amount of embed
 parameters substitutes for it.
 
-Two things still tilt the odds, and both are set:
+The player's UI language (`YOUTUBE.uiLang`) is **English**, set separately from
+the subtitle language (`YOUTUBE.captionLang`, Arabic) — so the settings menu and
+the audio-track names stay readable while subtitles remain Arabic.
 
-- **`hl: 'ar'`** — the settings menu and every track name render in Arabic.
+One thing still tilts the odds:
+
 - **The default host, `www.youtube.com`, not `youtube-nocookie.com`.** Signed-in
   cookies travel with it, and a YouTube account whose language is Arabic is the
   one lever that makes a dub come up on its own. Setting the *account* language

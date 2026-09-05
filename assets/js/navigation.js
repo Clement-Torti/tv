@@ -177,6 +177,7 @@ function renderAllSections() {
     // Sits right under the favourites. Written synchronously so it holds its
     // place in the page; the feeds fill it in when they land.
     renderYouTubeRow();
+    renderYouTubeChannelsRow();
 
     const listable = visibleChannels(allChannels);
 

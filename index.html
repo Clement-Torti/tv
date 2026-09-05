@@ -186,6 +186,8 @@
                         <!-- Re-asserts Arabic: YouTube's own CC button turns on
                              whatever language it defaults to, not necessarily ours. -->
                         <button class="control-btn active" id="ytCcBtn" onclick="toggleArabicCaptions()" data-tooltip="Arabic subtitles"><i class="fas fa-closed-captioning"></i></button>
+                        <!-- Shown only when playback came from a channel circle. -->
+                        <button class="control-btn" id="ytNextBtn" style="display:none" onclick="nextRandomChannelVideo()" data-tooltip="Next video"><i class="fas fa-forward"></i></button>
                         <button class="control-btn" onclick="toggleYouTubeCarousel()" data-tooltip="Up next"><i class="fas fa-chevron-down" id="ytCarouselIcon"></i></button>
                         <a class="control-btn" id="ytExternalLink" href="#" target="_blank" rel="noopener" data-tooltip="Open on YouTube"><i class="fab fa-youtube"></i></a>
                     </div>

@@ -195,6 +195,13 @@ function initContentInteractions() {
             return;
         }
 
+        // A channel circle plays a random recent upload from that channel.
+        const ytCircle = e.target.closest('[data-yt-channel]');
+        if (ytCircle) {
+            openRandomChannelVideo(ytCircle.dataset.ytChannel);
+            return;
+        }
+
         // A YouTube card opens the embedded player, not a channel stream.
         const ytCard = e.target.closest('.card[data-yt-id]');
         if (ytCard) {

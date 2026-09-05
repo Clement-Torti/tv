@@ -72,6 +72,7 @@ function init() {
     initContentInteractions();
     initYouTube();
     initPlayerAutoHide();
+    initYouTubeTopBar();
     initGlobalListeners();
     initWatchTimer();
     loadChannelList();

@@ -116,8 +116,18 @@ const YOUTUBE = {
     cacheTtlMs: 30 * 60 * 1000,
     // Feeds fetched at once. Each is a few KB, but every one is a Worker request.
     concurrency: 4,
-    // Videos kept per channel before the merged row is built.
+    // Videos kept per channel before the merged row is built. The cache always
+    // holds the full feed; this only trims what the row draws from, so one
+    // prolific channel cannot fill it.
     perChannel: 6,
+    // Length of the ranked "Top 10" row.
+    topCount: 10,
+    /*
+     * How recent a video must be to be offered when a channel circle is clicked.
+     * The feed only reaches back 15 uploads, so a channel that posts rarely may
+     * have nothing this new -- that case falls back to its newest upload.
+     */
+    randomMaxAgeDays: 90,
     // Watch URL used for the "open on YouTube" fallback.
     watchBase: 'https://www.youtube.com/watch?v=',
     // Privacy-preserving embed host, used by the in-app player.
@@ -132,7 +142,13 @@ const YOUTUBE = {
      * method -- so `hl` below is the only signal available, and a dub plays only
      * where the uploader published one.
      */
-    captionLang: 'ar'
+    captionLang: 'ar',
+    /*
+     * Language of YouTube's own player UI. Kept English on purpose: the caption
+     * language above is set separately, so subtitles stay Arabic while the
+     * settings menu -- including the Audio track entry -- reads in English.
+     */
+    uiLang: 'en'
 };
 
 // localStorage keys.
