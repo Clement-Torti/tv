@@ -121,7 +121,18 @@ const YOUTUBE = {
     // Watch URL used for the "open on YouTube" fallback.
     watchBase: 'https://www.youtube.com/watch?v=',
     // Privacy-preserving embed host, used by the in-app player.
-    embedBase: 'https://www.youtube-nocookie.com/embed/'
+    embedBase: 'https://www.youtube-nocookie.com/embed/',
+    /*
+     * Subtitle language forced on every video, and the player's own UI language.
+     * A track the uploader published in this language is preferred; failing that
+     * YouTube auto-translates whatever track exists into it.
+     *
+     * This does NOT control the *audio* track. YouTube's multi-language dubs are
+     * not reachable from the IFrame API at all -- it exposes no audio-track
+     * method -- so `hl` below is the only signal available, and a dub plays only
+     * where the uploader published one.
+     */
+    captionLang: 'ar'
 };
 
 // localStorage keys.

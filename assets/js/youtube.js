@@ -12,7 +12,9 @@
  *
  * Videos play in an embedded iframe rather than the site's own <video>: YouTube
  * serves no manifest a browser may attach to, so hls.js and dashjs are no use
- * here. That is why this does not reuse player.js.
+ * here. The iframe is driven through the IFrame Player API and wrapped in the
+ * live-TV player's own chrome, so the two players match; player.js itself is not
+ * reused because every one of its controls talks to a <video> element.
  */
 
 /* A channel id is always `UC` followed by 22 url-safe base64 characters. */
@@ -23,6 +25,10 @@ const ytVideosById = new Map();
 
 // Guards against a feed load landing after the user has navigated away.
 let ytRenderToken = 0;
+
+// The row as rendered, in order. Backs the player's "up next" carousel and the
+// roll-on when a video ends.
+let ytRowVideos = [];
 
 /* --- Input -> channel id ---------------------------------------------------
  *
@@ -352,6 +358,7 @@ async function fillYouTubeRow(token, rowId, options) {
     videos = interleaveByChannel(videos).slice(0, LIMITS.youtubeRow);
 
     videos.forEach(v => ytVideosById.set(v.id, v));
+    ytRowVideos = videos;
 
     if (videos.length === 0) {
         row.innerHTML = '<div class="yt-row-message">No videos found. Check the channels in your profile.</div>';
@@ -371,33 +378,443 @@ function refreshYouTubeRow() {
 
 /* --- Video playback ---
  *
- * An iframe, not the site player: YouTube publishes no manifest for hls.js or
- * dashjs to attach to. Some uploads forbid embedding, so the header always
- * offers a way out to youtube.com.
+ * The video is an iframe -- YouTube publishes no manifest hls.js or dashjs could
+ * attach to -- but it is driven through the IFrame Player API and dressed in the
+ * live-TV player's own chrome (.video-modal, .player-overlay, .control-btn), so
+ * both players look and behave alike. YouTube's native controls are switched off
+ * (`controls: 0`) precisely so there is only ever one set of controls on screen.
  */
-function openYouTubeVideo(videoId) {
-    const video = ytVideosById.get(videoId);
-    const frame = document.getElementById('youtubeFrame');
 
-    document.getElementById('youtubeModalTitle').innerText = video ? video.title : 'YouTube';
-    document.getElementById('youtubeModalLink').href = YOUTUBE.watchBase + videoId;
-    frame.src = `${YOUTUBE.embedBase}${encodeURIComponent(videoId)}?autoplay=1&rel=0&modestbranding=1`;
-    document.getElementById('youtubeModal').style.display = 'flex';
+let ytPlayer = null;
+let ytApiPromise = null;
+let ytCurrentVideo = null;
+let ytProgressTimer = null;
+let ytCaptionsOn = true;
+let ytLastVolume = 1;
+let ytMouseTimer = null;
+let ytCaptionTimer = null;
+
+/* Loads the IFrame API once, on first play, rather than on every page load. */
+function loadYouTubeApi() {
+    if (ytApiPromise) return ytApiPromise;
+
+    ytApiPromise = new Promise((resolve) => {
+        if (window.YT && window.YT.Player) return resolve(window.YT);
+
+        // The API calls this global when it is ready; there is no other hook.
+        window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(script);
+    });
+    return ytApiPromise;
 }
 
+async function openYouTubeVideo(videoId) {
+    const video = ytVideosById.get(videoId) || null;
+    ytCurrentVideo = video;
+
+    document.getElementById('ytPlayerTitle').innerText = video ? video.title : 'YouTube';
+    document.getElementById('ytExternalLink').href = YOUTUBE.watchBase + videoId;
+    document.getElementById('youtubeModal').style.display = 'flex';
+    setWatchTimerFloating(true);
+    setYouTubeStatus('Loading…');
+
+    // A new video brings its own caption tracks; clear the previous verdict.
+    clearTimeout(ytCaptionTimer);
+    document.getElementById('ytCcBtn').classList.remove('unavailable');
+    document.getElementById('ytCcBtn').classList.toggle('active', ytCaptionsOn);
+    renderYouTubeCarousel();
+    document.getElementById('ytCarousel').classList.add('open');
+    document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-down';
+
+    // The site player and this one must never sound at once.
+    document.getElementById('hero-video-bg').muted = true;
+    document.getElementById('heroMuteIcon').className = 'fas fa-volume-mute';
+
+    const YT = await loadYouTubeApi();
+
+    // Reuse the instance across videos: recreating the iframe each time would
+    // re-handshake with YouTube and blank the player for a second.
+    if (ytPlayer && ytPlayer.loadVideoById) {
+        ytPlayer.loadVideoById(videoId);
+        return;
+    }
+
+    ytPlayer = new YT.Player('ytFrame', {
+        videoId,
+        playerVars: {
+            autoplay: 1,
+            controls: 0,        // our overlay is the only control surface
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            iv_load_policy: 3,  // no annotation cards over the picture
+            cc_load_policy: 1,  // captions on from the first frame
+            cc_lang_pref: YOUTUBE.captionLang,
+            // Arabic UI, and the strongest signal available that this viewer
+            // wants the Arabic audio track where the uploader published one.
+            hl: YOUTUBE.captionLang,
+            origin: window.location.origin
+        },
+        events: {
+            onReady: onYouTubePlayerReady,
+            onStateChange: onYouTubePlayerState,
+            onError: onYouTubePlayerError
+        }
+    });
+}
+
+function onYouTubePlayerReady(e) {
+    e.target.playVideo();
+    syncYouTubeVolumeUi(e.target.getVolume() / 100);
+    scheduleArabicCaptions();
+}
+
+function onYouTubePlayerState(e) {
+    const YT = window.YT;
+    const playing = e.data === YT.PlayerState.PLAYING;
+    updateYouTubeIcons(!playing);
+
+    if (playing) {
+        setYouTubeStatus('');
+        startYouTubeProgress();
+        // A newly loaded video brings its own caption tracks with it.
+        scheduleArabicCaptions();
+    } else {
+        stopYouTubeProgress();
+    }
+    if (e.data === YT.PlayerState.ENDED) playNextYouTubeVideo();
+}
+
+/*
+ * Embedding is the uploader's choice, and a refusal surfaces here rather than
+ * anywhere the API can pre-empt. 101/150 are the "embedding disabled" codes.
+ */
+function onYouTubePlayerError(e) {
+    const blocked = e.data === 101 || e.data === 150;
+    setYouTubeStatus(blocked
+        ? 'This video cannot be embedded. Use "Open on YouTube" below.'
+        : `Playback error (${e.data}).`);
+}
+
+/* --- Arabic subtitles ---
+ *
+ * Caption tracks load lazily, a second or more after the player reports ready,
+ * so a single attempt usually finds an empty tracklist. This retries until the
+ * module answers, then stops.
+ */
+function scheduleArabicCaptions(attempt = 0) {
+    clearTimeout(ytCaptionTimer);
+    if (!ytCaptionsOn) return;
+
+    /*
+     * Give up after ~25s. Caption tracks can appear well over ten seconds after
+     * playback starts, and a video that simply has none never reports any -- so
+     * this has to be patient, and has to stop.
+     */
+    if (attempt > 24) {
+        markCaptionsUnavailable();
+        return;
+    }
+
+    ytCaptionTimer = setTimeout(() => {
+        const result = applyArabicCaptions();
+        if (result === 'pending') return scheduleArabicCaptions(attempt + 1);
+        if (result === 'none') return markCaptionsUnavailable();
+        // Applied: light the button back up in case a previous video had none.
+        document.getElementById('ytCcBtn').classList.remove('unavailable');
+        document.getElementById('ytCcBtn').classList.add('active');
+    }, attempt === 0 ? 700 : 1000);
+}
+
+/*
+ * Not every video has captions -- plenty are published with none at all, and
+ * nothing on our side can conjure them. Say so on the button rather than leaving
+ * it lit as though Arabic were on.
+ */
+function markCaptionsUnavailable() {
+    const button = document.getElementById('ytCcBtn');
+    if (!button) return;
+    button.classList.remove('active');
+    button.classList.add('unavailable');
+}
+
+function applyArabicCaptions() {
+    if (!ytPlayer || !ytPlayer.getOption) return 'pending';
+
+    try {
+        ytPlayer.setOption('captions', 'reload', true);
+        const tracks = ytPlayer.getOption('captions', 'tracklist') || [];
+        if (tracks.length === 0) return 'pending';
+
+        // A track the uploader actually published in Arabic always wins.
+        const native = tracks.find(t => t.languageCode === YOUTUBE.captionLang);
+        if (native) {
+            ytPlayer.setOption('captions', 'track', native);
+            return 'native';
+        }
+
+        /*
+         * Otherwise have YouTube auto-translate. The translation only takes when
+         * `translationLanguage` is attached to the *track object* and that object
+         * is written back: setting it as a standalone option is accepted and then
+         * silently ignored, which is why this is not a one-liner.
+         */
+        const current = ytPlayer.getOption('captions', 'track');
+        const base = (current && current.languageCode)
+            ? current
+            : tracks.find(t => t.is_translateable) || tracks[0];
+        if (!base) return 'none';
+
+        base.translationLanguage = { languageCode: YOUTUBE.captionLang };
+        ytPlayer.setOption('captions', 'track', base);
+        return 'translated';
+    } catch (err) {
+        return 'pending';
+    }
+}
+
+function toggleArabicCaptions() {
+    if (!ytPlayer) return;
+    ytCaptionsOn = !ytCaptionsOn;
+
+    const button = document.getElementById('ytCcBtn');
+    button.classList.toggle('active', ytCaptionsOn);
+
+    if (ytCaptionsOn) {
+        scheduleArabicCaptions();
+        showToast('Arabic subtitles on');
+    } else {
+        try { ytPlayer.setOption('captions', 'track', {}); } catch (err) { /* already off */ }
+        showToast('Subtitles off');
+    }
+}
+
+/* --- Controls --- */
+function toggleYouTubePlay() {
+    if (!ytPlayer || !ytPlayer.getPlayerState) return;
+    const playing = ytPlayer.getPlayerState() === window.YT.PlayerState.PLAYING;
+    if (playing) ytPlayer.pauseVideo();
+    else ytPlayer.playVideo();
+    updateYouTubeIcons(playing);
+}
+
+function updateYouTubeIcons(isPaused) {
+    const icon = isPaused ? 'fas fa-play' : 'fas fa-pause';
+    document.getElementById('ytCenterIcon').className = icon;
+    document.getElementById('ytBottomIcon').className = icon;
+}
+
+function seekYouTubeBy(seconds) {
+    if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+    ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() + seconds), true);
+    showToast(`${seconds > 0 ? '+' : ''}${seconds}s`);
+}
+
+function seekYouTubeToPercent(value) {
+    if (!ytPlayer || !ytPlayer.getDuration) return;
+    const duration = ytPlayer.getDuration();
+    if (duration > 0) ytPlayer.seekTo((Number(value) / 1000) * duration, true);
+}
+
+function adjustYouTubeSpeed(delta) {
+    if (!ytPlayer || !ytPlayer.getPlaybackRate) return;
+    /*
+     * Unlike a <video>, YouTube only accepts rates from a fixed list, so the
+     * request is snapped to the nearest one it offers.
+     */
+    const rates = ytPlayer.getAvailablePlaybackRates() || [1];
+    const target = ytPlayer.getPlaybackRate() + delta;
+    const nearest = rates.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
+    ytPlayer.setPlaybackRate(nearest);
+    document.getElementById('ytSpeedDisplay').innerText = nearest.toFixed(2) + 'x';
+}
+
+function handleYouTubeVolume(value) {
+    if (!ytPlayer || !ytPlayer.setVolume) return;
+    const volume = parseFloat(value);
+    ytPlayer.setVolume(volume * 100);
+    if (volume === 0) ytPlayer.mute(); else ytPlayer.unMute();
+    updateYouTubeVolumeIcon(volume);
+}
+
+function toggleYouTubeMute() {
+    const slider = document.getElementById('ytVolumeSlider');
+    const current = parseFloat(slider.value);
+
+    if (current > 0) {
+        ytLastVolume = current;
+        slider.value = 0;
+        handleYouTubeVolume(0);
+    } else {
+        const target = ytLastVolume > 0 ? ytLastVolume : 0.5;
+        slider.value = target;
+        handleYouTubeVolume(target);
+    }
+}
+
+function syncYouTubeVolumeUi(volume) {
+    document.getElementById('ytVolumeSlider').value = volume;
+    updateYouTubeVolumeIcon(volume);
+}
+
+function updateYouTubeVolumeIcon(volume) {
+    const icon = document.getElementById('ytVolumeIcon');
+    if (volume === 0) icon.className = 'fas fa-volume-mute';
+    else if (volume < 0.5) icon.className = 'fas fa-volume-down';
+    else icon.className = 'fas fa-volume-up';
+}
+
+function toggleYouTubeFullscreen() {
+    const wrapper = document.getElementById('ytWrapper');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else wrapper.requestFullscreen();
+}
+
+/* --- Progress --- */
+function formatClock(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+    const total = Math.floor(seconds);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return h > 0
+        ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function startYouTubeProgress() {
+    stopYouTubeProgress();
+    ytProgressTimer = setInterval(() => {
+        if (!ytPlayer || !ytPlayer.getDuration) return;
+        const duration = ytPlayer.getDuration();
+        const elapsed = ytPlayer.getCurrentTime();
+        if (!duration) return;
+
+        const slider = document.getElementById('ytProgress');
+        // Leave the slider alone while it is being dragged.
+        if (document.activeElement !== slider) slider.value = (elapsed / duration) * 1000;
+        slider.style.setProperty('--yt-progress', `${(elapsed / duration) * 100}%`);
+        document.getElementById('ytElapsed').innerText = formatClock(elapsed);
+        document.getElementById('ytDuration').innerText = formatClock(duration);
+    }, 500);
+}
+
+function stopYouTubeProgress() {
+    clearInterval(ytProgressTimer);
+    ytProgressTimer = null;
+}
+
+/* --- "Up next" carousel, mirroring the favourites carousel in the TV player --- */
+function toggleYouTubeCarousel() {
+    const carousel = document.getElementById('ytCarousel');
+    const icon = document.getElementById('ytCarouselIcon');
+
+    if (carousel.classList.contains('open')) {
+        carousel.classList.remove('open');
+        icon.className = 'fas fa-chevron-up';
+        return;
+    }
+    renderYouTubeCarousel();
+    carousel.classList.add('open');
+    icon.className = 'fas fa-chevron-down';
+}
+
+function renderYouTubeCarousel() {
+    const track = document.getElementById('ytCarouselList');
+    track.innerHTML = '';
+
+    if (ytRowVideos.length === 0) {
+        track.innerHTML = '<div style="color:#aaa; width:100%; text-align:center;">No other videos loaded.</div>';
+        return;
+    }
+
+    ytRowVideos.forEach(video => {
+        const isActive = Boolean(ytCurrentVideo) && ytCurrentVideo.id === video.id;
+
+        const card = document.createElement('div');
+        card.className = `carousel-card ${isActive ? 'active' : ''}`;
+        card.style.background = getGradient(video.title);
+        card.innerHTML = `
+            <img src="${escapeAttr(video.thumb)}" onerror="this.style.display='none'" loading="lazy" alt="${escapeAttr(video.title)}">
+            <div class="carousel-card-info">
+                <span class="carousel-name">${escapeHtml(video.title)}</span>
+            </div>`;
+
+        card.onclick = (e) => { e.stopPropagation(); openYouTubeVideo(video.id); };
+        track.appendChild(card);
+
+        if (isActive) {
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 100);
+        }
+    });
+}
+
+/* Rolls on to the next video in the row when one finishes. */
+function playNextYouTubeVideo() {
+    if (!ytCurrentVideo) return;
+    const index = ytRowVideos.findIndex(v => v.id === ytCurrentVideo.id);
+    const next = ytRowVideos[index + 1];
+    if (next) openYouTubeVideo(next.id);
+}
+
+/* --- Open / close --- */
 function closeYouTubeModal(e) {
-    // Ignore clicks that bubbled up from inside the dialog.
+    // Ignore clicks that bubbled up from inside the player chrome.
     if (e && e.target !== document.getElementById('youtubeModal')) return;
 
-    // Clearing the src is what actually stops playback; hiding the modal alone
-    // leaves the audio running.
-    document.getElementById('youtubeFrame').src = '';
+    // stopVideo, not just hiding the modal: a hidden iframe keeps playing audio.
+    if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+    stopYouTubeProgress();
+    clearTimeout(ytCaptionTimer);
+
+    setYouTubeStatus('');
     document.getElementById('youtubeModal').style.display = 'none';
+    setWatchTimerFloating(false);
+    document.getElementById('ytCarousel').classList.remove('open');
+    document.getElementById('ytCarouselIcon').className = 'fas fa-chevron-up';
+    ytCurrentVideo = null;
+    if (document.fullscreenElement) document.exitFullscreen();
 }
 
 function isYouTubeModalOpen() {
     const modal = document.getElementById('youtubeModal');
     return Boolean(modal) && modal.style.display === 'flex';
+}
+
+/* A one-line note under the title, matching the TV player's failover message. */
+function setYouTubeStatus(message) {
+    const el = document.getElementById('ytStatus');
+    if (!el) return;
+    el.innerText = message || '';
+    el.classList.toggle('show', Boolean(message));
+}
+
+/* Mirrors togglePlayerControls: on desktop the overlay is hover-driven. */
+function toggleYouTubeControls() {
+    const overlay = document.getElementById('ytOverlay');
+    if (window.innerWidth > 768) return;
+    overlay.classList.toggle('show-mobile');
+}
+
+function initYouTubePlayerAutoHide() {
+    document.getElementById('ytWrapper').addEventListener('mousemove', () => {
+        if (window.innerWidth <= 768) return;
+
+        const wrapper = document.getElementById('ytWrapper');
+        const overlay = document.getElementById('ytOverlay');
+        wrapper.style.cursor = 'default';
+        overlay.style.opacity = '1';
+
+        clearTimeout(ytMouseTimer);
+        ytMouseTimer = setTimeout(() => {
+            if (!ytPlayer || !ytPlayer.getPlayerState) return;
+            if (ytPlayer.getPlayerState() !== window.YT.PlayerState.PLAYING) return;
+            overlay.style.opacity = '0';
+            wrapper.style.cursor = 'none';
+        }, 2000);
+    });
 }
 
 /* --- Profile modal -------------------------------------------------------- */

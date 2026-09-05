@@ -87,39 +87,97 @@
 
 /* --- Embedded player ---
  *
- * Deliberately not .video-modal: that one is wired to the <video> element, its
- * controls and the Chromecast session. This is an iframe with a title bar.
+ * The chrome itself is player.css's: .video-modal, .player-overlay, .player-top,
+ * .control-btn and .player-carousel are all reused as-is. Only what an iframe
+ * needs that a <video> does not lives here.
  */
-.yt-modal {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.92); z-index: 3500;
-    display: none; align-items: center; justify-content: center;
-}
-.yt-modal-inner { width: 92%; max-width: 1280px; display: flex; flex-direction: column; gap: 12px; }
 
-.yt-modal-top { display: flex; align-items: center; gap: 15px; }
-.yt-modal-title {
-    font-size: 1.05rem; font-weight: bold; color: #fff; flex: 1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* The API replaces #ytFrame with an iframe, so both need to fill the wrapper. */
+#ytFrame, #ytFrame iframe {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0; display: block;
+    z-index: 0;
 }
-.yt-modal-actions { display: flex; align-items: center; gap: 10px; }
 
-.yt-modal-link {
-    display: inline-flex; align-items: center; gap: 7px;
-    color: #ddd; text-decoration: none; font-size: 0.8rem; font-weight: bold;
-    border: 1px solid #444; border-radius: 4px; padding: 7px 12px; transition: 0.2s;
+/* Above the iframe: a positioned sibling alone is not enough to beat one. */
+#ytWrapper .player-overlay { z-index: 10; }
+#ytWrapper .player-status { z-index: 15; }
+
+/* Two stacked rows (scrub bar, then controls) where the TV player has one. */
+.yt-player-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
 }
-.yt-modal-link:hover { color: #fff; border-color: #888; background: rgba(255,255,255,0.08); }
-.yt-modal-link i { color: #ff0000; font-size: 1rem; }
+.yt-controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 
-.yt-modal-close {
-    background: none; border: none; color: #aaa; cursor: pointer;
-    font-size: 1.4rem; padding: 4px 10px; line-height: 1;
+.yt-progress-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0 10px; }
+.yt-time {
+    font-size: 0.78rem; font-variant-numeric: tabular-nums; color: #ddd;
+    text-shadow: 0 1px 3px #000; min-width: 42px; text-align: center;
 }
-.yt-modal-close:hover { color: #fff; }
 
-.yt-modal-frame { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; overflow: hidden; }
-.yt-modal-frame iframe { width: 100%; height: 100%; border: none; display: block; }
+/* Filled portion is painted with a gradient driven by --yt-progress, set from
+   the timer -- an <input type=range> has no cross-browser "elapsed" pseudo. */
+.yt-progress {
+    -webkit-appearance: none; appearance: none;
+    flex: 1; height: 5px; border-radius: 3px; cursor: pointer;
+    background: linear-gradient(to right,
+        var(--primary) 0%, var(--primary) var(--yt-progress, 0%),
+        rgba(255,255,255,0.3) var(--yt-progress, 0%), rgba(255,255,255,0.3) 100%);
+}
+.yt-progress::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--primary); cursor: pointer;
+    transition: transform 0.1s;
+}
+.yt-progress::-webkit-slider-thumb:hover { transform: scale(1.25); }
+.yt-progress::-moz-range-thumb {
+    width: 13px; height: 13px; border: none; border-radius: 50%;
+    background: var(--primary); cursor: pointer;
+}
+
+/* Captions are on by default, so the button ships lit. Videos published without
+   any caption track dim it instead, rather than claiming Arabic is on. */
+#ytCcBtn.active { color: var(--primary); }
+#ytCcBtn.unavailable { color: #555; }
+#ytCcBtn.unavailable::before {
+    content: ''; position: absolute; left: 12%; right: 12%; top: 50%;
+    height: 2px; background: #555; transform: rotate(-20deg);
+}
+
+/*
+ * The scrub bar made .player-bottom two rows tall, so the carousel's 90px
+ * clearance from player.css is no longer enough -- it sat on top of the times.
+ */
+#ytCarousel { bottom: 138px; }
+
+/*
+ * A heavier scrim than the TV player's.
+ *
+ * YouTube paints its own title, channel avatar and "more videos" strip inside
+ * the iframe whenever the video is paused or seeking, and no embed parameter
+ * suppresses them any more (`showinfo` was removed in 2018, `modestbranding` in
+ * 2024). They sit below our overlay, so darkening the top and bottom bands is
+ * what keeps them from showing through -- and it makes our own controls read
+ * better over bright footage anyway.
+ */
+#ytOverlay {
+    background: linear-gradient(to bottom,
+        rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 8%, transparent 26%,
+        transparent 62%, rgba(0,0,0,0.8) 82%, rgba(0,0,0,0.95) 100%);
+}
+
+/* The carousel holds video thumbnails here, not channel logos, so they fill
+   the card instead of being letterboxed inside it. */
+#ytCarouselList .carousel-card img { object-fit: cover; opacity: 0.75; }
+#ytCarouselList .carousel-card .carousel-card-info {
+    justify-content: flex-end;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 70%);
+}
+#ytCarouselList .carousel-name { font-size: 0.78rem; text-align: left; }
 
 /* --- Profile modal --- */
 .profile-modal-content { width: 480px; }
@@ -160,10 +218,11 @@
 .yt-toggle:hover { text-decoration: none; }
 
 @media (max-width: 768px) {
-    .yt-modal-inner { width: 100%; gap: 8px; }
-    .yt-modal-top { padding: 0 12px; }
-    .yt-modal-frame { border-radius: 0; }
-    .yt-modal-title { font-size: 0.9rem; }
+    .yt-progress-row { gap: 8px; padding: 0; }
+    .yt-time { font-size: 0.7rem; min-width: 36px; }
+    .yt-controls-row { flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .yt-player-bottom { gap: 8px; }
+    #ytCarousel { bottom: 150px; }
     .yt-card { width: 248px; height: 140px; }
     .yt-row-message { height: 140px; }
     .yt-title { font-size: 0.82rem; }

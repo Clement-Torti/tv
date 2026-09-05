@@ -14,8 +14,37 @@ function initGlobalListeners() {
             return;
         }
 
-        // The YouTube iframe owns its own keyboard controls.
-        if (!isPlayerOpen() || isYouTubeModalOpen()) return;
+        /*
+         * YouTube's own controls are switched off, so this page owns the
+         * keyboard for that player too -- the same keys, routed to it.
+         */
+        if (isYouTubeModalOpen()) {
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    toggleYouTubePlay();
+                    break;
+                case 'f':
+                case 'F':
+                    toggleYouTubeFullscreen();
+                    break;
+                case 'c':
+                case 'C':
+                    toggleArabicCaptions();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    seekYouTubeBy(-5);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    seekYouTubeBy(5);
+                    break;
+            }
+            return;
+        }
+
+        if (!isPlayerOpen()) return;
 
         switch (e.key) {
             case ' ':
@@ -43,6 +72,7 @@ function init() {
     initContentInteractions();
     initYouTube();
     initPlayerAutoHide();
+    initYouTubePlayerAutoHide();
     initGlobalListeners();
     initWatchTimer();
     loadChannelList();

@@ -149,17 +149,89 @@ Shorts share the uploads feed with regular videos and **no field distinguishes
 them** — the only signal is the `/shorts/` link the entry carries. The "Hide
 Shorts" toggle in the profile modal keys off that, and is on by default.
 
-### Caching and playback
+### Caching
 
 Feeds are cached in `localStorage` for 30 minutes (`YOUTUBE.cacheTtlMs`), so a
 page refresh costs no requests at all; the refresh button beside the row heading
 bypasses it. YouTube itself caches the feed for several minutes, so polling harder
 would only burn Worker quota for the same bytes.
 
-Videos play in an embedded iframe, **not** the site's own player: YouTube serves
-no manifest that hls.js or dashjs could attach to, so none of `stream.js` applies.
-Some uploads forbid embedding, so the player header always offers a way out to
-youtube.com.
+## The YouTube player
+
+Videos play in an iframe — YouTube serves no manifest hls.js or dashjs could
+attach to, so nothing in `stream.js` applies. But the iframe is driven through
+the **IFrame Player API** and wrapped in the live-TV player's own chrome, so the
+two players match: `.video-modal`, `.player-overlay`, `.player-top`,
+`.control-btn` and `.player-carousel` are all reused from `player.css`.
+
+YouTube's own controls are switched off (`controls: 0`) precisely so there is
+only ever one set of controls on screen. That means this page owns the keyboard
+too — space, `f`, `c` and the arrow keys route to the YouTube player exactly as
+they do to the TV one.
+
+`player.js` itself is **not** reused, because every one of its controls talks to
+a `<video>` element. The two differences from the TV player are deliberate:
+
+- A **scrub bar**, which the TV player has no use for because live streams
+  cannot seek.
+- The carousel lists the **other videos in the row** rather than favourite
+  channels, and a finished video rolls on to the next one.
+
+### What the scrim is for
+
+YouTube paints its own title, channel avatar and "more videos" strip inside the
+iframe whenever the video is paused or seeking, and **no embed parameter
+suppresses them any more** — `showinfo` was removed in 2018 and `modestbranding`
+in 2024. They render below our overlay, so `#ytOverlay` carries a heavier scrim
+than the TV player's to keep them from showing through. During steady playback
+nothing of YouTube's own chrome is visible; while paused, a little remains
+faintly behind the control bar.
+
+## Arabic subtitles and dubbed audio
+
+The two halves of this are not equally solvable, so they are worth separating.
+
+### Subtitles: forced on, and verified
+
+Every video opens with Arabic subtitles on. A track the uploader actually
+published in Arabic is preferred; failing that YouTube auto-translates whatever
+track exists (Arabic is among its 156 translation targets).
+
+The auto-translation is **not** a one-liner, and the obvious spelling of it fails
+silently:
+
+```js
+// Accepted and then ignored — no error, no subtitles.
+player.setOption('captions', 'translationLanguage', { languageCode: 'ar' });
+
+// Works: the property has to ride on the track object, written back.
+const track = player.getOption('captions', 'track');
+track.translationLanguage = { languageCode: 'ar' };
+player.setOption('captions', 'track', track);
+```
+
+Caption tracks also load *lazily*, sometimes more than ten seconds after the
+player reports ready, so a single attempt usually finds an empty tracklist.
+`scheduleArabicCaptions` retries for ~25 seconds before giving up. Plenty of
+videos genuinely ship no captions at all; those dim the CC button rather than
+leaving it lit as though Arabic were on.
+
+### Dubbed audio: not reachable from an embed
+
+**The IFrame Player API exposes no audio-track control at all.** Enumerating a
+live player instance returns 72 methods and not one of them touches audio tracks
+(`getAvailableAudioTracks`, `setAudioTrack` and friends are simply absent). So an
+Arabic dub cannot be selected, and cannot even be *read back*, from any embed —
+this is a limit of YouTube's API, not something the code is missing.
+
+What is set instead is `hl: 'ar'`, which makes the player's interface Arabic and
+is the only language signal an embed can send; YouTube uses the viewer's language
+preference when choosing a default audio track, so a dub may well be picked up
+where the uploader published one. That could not be confirmed from here either,
+since nothing in the API reports which audio track is playing.
+
+Where a video has an Arabic dub and it does not come up by itself, the reliable
+route is the **YouTube button** in the control bar (settings → Audio track).
 
 ## Why streams get hidden
 
@@ -194,6 +266,8 @@ them and lost 628 working channels, BFM Alsace among them.
   (or its name, for streams the API has not matched to one).
 - Followed YouTube channels, the "Hide Shorts" preference and the cached feeds
   are `localStorage` too, so the list is per-browser and never leaves the device.
+- The IFrame Player API is loaded lazily, on the first video played, so visitors
+  who never open one pay nothing for it.
 - **Public CORS proxies are not usable for this.** Measured from a real browser:
   `corsproxy.io` answers 403 on every request, and `api.allorigins.win` succeeds
   only intermittently (1 of 3 attempts) at 6–25 seconds per request. Live HLS
